@@ -1,4 +1,4 @@
-function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, dim=1, correlation=true)
+function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, dim=1, totalspin=false, correlation=true)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
@@ -138,10 +138,35 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
             @constraint(model, Symmetric(pos) in PSDCone())
         end
     end
+    if totalspin==true
+        J1=AffExpr(3*L)
+        for i=1:Int(L/2)-1
+            word=UInt16[1; 3*i+1]
+            Locb=ncbfind(tsupp, ltsupp, word)
+            J1+=6*L*mvar[Locb]
+        end
+        Locb=ncbfind(tsupp, ltsupp, UInt16[1; 3*Int(L/2)+1])
+        J1+=3*L*mvar[Locb]
+        @constraint(model, J1==0)
+        # J2=AffExpr(0)
+        # for j1=1:L, j2=1:L, k1=1:L, k2=1:L
+        #     temp=UInt16[3*(j1-1)+1;3*(k1-1)+1;3*(j2-1)+1;3*(k2-1)+1]
+        #     bi=reduce!(temp, L=L, dim=dim)[1]
+        #     Locb=ncbfind(tsupp,ltsupp,bi)
+        #     J2+=3*mvar[Locb]
+        #     temp=UInt16[3*(j1-1)+1;3*(k1-1)+1;3*(j2-1)+2;3*(k2-1)+2]
+        #     bi,coef=reduce!(temp, L=L, dim=dim)
+        #     Locb=ncbfind(tsupp,ltsupp,bi)
+        #     if coef^2==1
+        #         J2+=6*coef*mvar[Locb]
+        #     end
+        # end
+        # @constraint(model, J2==0)
+    end
     obj=AffExpr(0)
     for i=1:length(supp)
         Locb=ncbfind(tsupp,ltsupp,supp[i])
-        global obj+=coe[i]*mvar[Locb]
+        obj+=coe[i]*mvar[Locb]
     end
     @constraint(model, mvar[1]==1)
     @objective(model, Min, obj)
@@ -155,12 +180,11 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     end
     println("optimum = $objv")
     if correlation==true
-        moment=value.(mvar)
         cor=zeros(3, Int(L/2))
         for i=1:Int(L/2), j=1:3
             word=UInt16[j; 3*i+j]
             Locb=ncbfind(tsupp, ltsupp, word)
-            cor[j, i]=moment[Locb]
+            cor[j, i]=value(mvar[Locb])
         end
     else
         cor=nothing
@@ -334,29 +358,28 @@ function split_basis(L, d, label)
     if label>0
         basis=Vector{UInt16}[]
         for i=1:L
-            push!(basis, UInt16[3*(i-1)+label])
+            push!(basis, [3*(i-1)+label])
         end
         if d>1
             a=[[rot(label)[1];rot(label)[2]], [rot(label)[2];rot(label)[1]]]
             for k=1:2
-                for i=1:L-1
-                    push!(basis, UInt16[3*(i-1)+a[k][1];3*i+a[k][2]])
+                for i=1:L
+                    push!(basis, [gmod(3*(i-1)+a[k][1], L);gmod(3*i+a[k][2], L)])
                 end
-                push!(basis, UInt16[a[k][2];3*(L-1)+a[k][1]])
             end
         end
         if d>2
             for i=1:L-2
-                push!(basis, UInt16[3*(i-1)+label;3*i+label;3*(i+1)+label])
+                push!(basis, [3*(i-1)+label;3*i+label;3*(i+1)+label])
             end
-            push!(basis, UInt16[label;3*(L-2)+label;3*(L-1)+label], UInt16[label;3+label;3*(L-1)+label])
+            push!(basis, [label;3*(L-2)+label;3*(L-1)+label], [label;3+label;3*(L-1)+label])
             for k=1:3, l=1:2
                 a=rot(label)[l]*ones(Int, 3)
                 a[k]=label
                 for i=1:L-2
-                    push!(basis, UInt16[3*(i-1)+a[1];3*i+a[2];3*(i+1)+a[3]])
+                    push!(basis, [3*(i-1)+a[1];3*i+a[2];3*(i+1)+a[3]])
                 end
-                push!(basis, UInt16[a[3];3*(L-2)+a[1];3*(L-1)+a[2]], UInt16[a[2];3+a[3];3*(L-1)+a[1]])
+                push!(basis, [a[3];3*(L-2)+a[1];3*(L-1)+a[2]], [a[2];3+a[3];3*(L-1)+a[1]])
             end
         end
     else
@@ -380,6 +403,10 @@ function split_basis(L, d, label)
         end
     end
     return basis
+end
+
+function gmod(i, L)
+    return i>3*L ? i-3*L : i
 end
 
 # function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, n::Int, d::Int; dim=1, conse=true, TS="block", merge=false, QUIET=false, correlation=false)
