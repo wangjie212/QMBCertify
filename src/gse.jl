@@ -1,4 +1,4 @@
-function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
@@ -402,9 +402,9 @@ function split_basis(L, d, label; lattice="chain", cont=true)
                         for i=1:L
                             push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L)])
                         end
-                        for i=1:L
-                            push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
-                        end
+                        # for i=1:L
+                        #     push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
+                        # end
                     else
                         for i=1:L, j=1:L
                             push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2]])
@@ -450,9 +450,9 @@ function split_basis(L, d, label; lattice="chain", cont=true)
                         for i=1:L
                             push!(basis, UInt16[3*(i-1)+k;smod(3*i+k, 3*L)])
                         end
-                        for i=1:L
-                            push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
-                        end
+                        # for i=1:L
+                        #     push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
+                        # end
                     else
                         for i=1:L, j=1:L
                             push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j, L=L)-1)+k])
@@ -591,7 +591,7 @@ end
 #     return objv,cor
 # end
 
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lattice="square", A=[], clique=3, solver="COSMO", CS=true, TS="block", merge=false, QUIET=false)
+function GSE2(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lattice="square", A=[], clique=3, solver="COSMO", CS=true, TS="block", merge=false, QUIET=false)
     # basis=get_ncbasis(3*L^2, d)
     # basis=basis[is_basis.(basis, L, lattice=lattice)]
     # tsupp=copy(supp)
