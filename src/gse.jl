@@ -1,8 +1,8 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", sec=false, rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
-        basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true)
+        basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true, sec=sec)
         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
             bi,coef=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
@@ -382,7 +382,7 @@ function rot(label)
     end
 end
 
-function split_basis(L, d, label; lattice="chain", cont=true)
+function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
     if label>0
         basis=Vector{UInt16}[]
         if lattice=="chain"
@@ -402,15 +402,25 @@ function split_basis(L, d, label; lattice="chain", cont=true)
                         for i=1:L
                             push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L)])
                         end
-                        # for i=1:L
-                        #     push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
-                        # end
+                        if sec==true
+                            for i=1:L
+                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
+                            end
+                        end
                     else
                         for i=1:L, j=1:L
                             push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2]])
                         end
                         for i=1:L, j=1:L
                             push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][2]])
+                        end
+                        if sec==true
+                            for i=1:L, j=1:L
+                                push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j, L=L)-1)+a[k][2]])
+                            end
+                            for i=1:L, j=1:L
+                                push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j-1, i+j, L=L)-1)+a[k][2]])
+                            end
                         end
                     end
                 else
@@ -450,15 +460,25 @@ function split_basis(L, d, label; lattice="chain", cont=true)
                         for i=1:L
                             push!(basis, UInt16[3*(i-1)+k;smod(3*i+k, 3*L)])
                         end
-                        # for i=1:L
-                        #     push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
-                        # end
+                        if sec==true
+                            for i=1:L
+                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
+                            end
+                        end
                     else
                         for i=1:L, j=1:L
                             push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j, L=L)-1)+k])
                         end
                         for i=1:L, j=1:L
                             push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j-1, L=L)-1)+k])
+                        end
+                        if sec==true
+                            for i=1:L, j=1:L
+                                push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j, L=L)-1)+k])
+                            end
+                            for i=1:L, j=1:L
+                                push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j-1, i+j, L=L)-1)+k])
+                            end
                         end
                     end
                 else
@@ -511,85 +531,6 @@ function _get_ncbasis_deg(n, d; ind=UInt16[i for i=1:n])
         return [UInt16[]]
     end
 end
-
-# function GSE0(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", totalspin=false, sector=0, correlation=false)
-#     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
-#     tsupp=Vector{UInt16}[]
-#     for i=0:3
-#         basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true)
-#         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
-#             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
-#             bi=reduce!(bi, L=L, lattice=lattice)[1]
-#             push!(tsupp, bi)
-#         end
-#     end
-#     sort!(tsupp)
-#     unique!(tsupp)
-#     ltsupp=length(tsupp)
-#     model=Model(optimizer_with_attributes(Mosek.Optimizer))
-#     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-#     cons=[AffExpr(0) for i=1:ltsupp]
-#     for i=1:4
-#         bs=length(basis[i])
-#         pos=@variable(model, [1:2*bs, 1:2*bs], PSD)
-#         for j=1:bs, r=j:bs
-#             @constraint(model, pos[j,r]==pos[j+bs,r+bs])
-#             @constraint(model, pos[r,j+bs]+pos[j,r+bs]==0)
-#             @inbounds bi = [basis[i][j]; basis[i][r]]
-#             bi,coef=reduce!(bi, L=L, lattice=lattice)
-#             Locb=bfind(tsupp, ltsupp, bi)
-#             if r==j
-#                 @inbounds cons[Locb]+=pos[j,r]
-#             else
-#                 if coef==1
-#                     @inbounds cons[Locb]+=2*pos[j,r]
-#                 elseif coef==im
-#                     @inbounds cons[Locb]-=2*pos[j,r+bs]
-#                 elseif coef==-1
-#                     @inbounds cons[Locb]-=2*pos[j,r]
-#                 else
-#                     @inbounds cons[Locb]+=2*pos[j,r+bs]
-#                 end
-#             end
-#         end
-#     end
-#     bc=zeros(ltsupp)
-#     for i=1:length(supp)
-#         Locb=bfind(tsupp, ltsupp, supp[i])
-#         if Locb==0
-#            @error "The monomial basis is not enough!"
-#            return nothing,nothing
-#         else
-#            bc[Locb]=coe[i]
-#         end
-#     end
-#     @variable(model, lower)
-#     cons[1]+=lower
-#     @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
-#     @objective(model, Max, lower)
-#     optimize!(model)
-#     status=termination_status(model)
-#     objv = objective_value(model)
-#     if status!=MOI.OPTIMAL
-#        println("termination status: $status")
-#        status=primal_status(model)
-#        println("solution status: $status")
-#     end
-#     println("optimum = $objv")
-#     if correlation==true
-#         maxl=min(Int(n/3), ceil(Int, L/2))
-#         dual_var=-dual.(con)
-#         cor=zeros(3, maxl-1)
-#         for i=1:maxl-1, j=1:3
-#             word=UInt16[j; 3*i+j]
-#             Locb=bfind(tsupp, ltsupp, word)
-#             cor[j, i]=dual_var[Locb]
-#         end
-#     else
-#         cor=nothing
-#     end
-#     return objv,cor
-# end
 
 function GSE2(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lattice="square", A=[], clique=3, solver="COSMO", CS=true, TS="block", merge=false, QUIET=false)
     # basis=get_ncbasis(3*L^2, d)
@@ -946,3 +887,82 @@ function Kagome_basis(clique, d)
     end
     return basis
 end
+
+# function GSE0(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", totalspin=false, sector=0, correlation=false)
+#     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
+#     tsupp=Vector{UInt16}[]
+#     for i=0:3
+#         basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true)
+#         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
+#             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
+#             bi=reduce!(bi, L=L, lattice=lattice)[1]
+#             push!(tsupp, bi)
+#         end
+#     end
+#     sort!(tsupp)
+#     unique!(tsupp)
+#     ltsupp=length(tsupp)
+#     model=Model(optimizer_with_attributes(Mosek.Optimizer))
+#     set_optimizer_attribute(model, MOI.Silent(), QUIET)
+#     cons=[AffExpr(0) for i=1:ltsupp]
+#     for i=1:4
+#         bs=length(basis[i])
+#         pos=@variable(model, [1:2*bs, 1:2*bs], PSD)
+#         for j=1:bs, r=j:bs
+#             @constraint(model, pos[j,r]==pos[j+bs,r+bs])
+#             @constraint(model, pos[r,j+bs]+pos[j,r+bs]==0)
+#             @inbounds bi = [basis[i][j]; basis[i][r]]
+#             bi,coef=reduce!(bi, L=L, lattice=lattice)
+#             Locb=bfind(tsupp, ltsupp, bi)
+#             if r==j
+#                 @inbounds cons[Locb]+=pos[j,r]
+#             else
+#                 if coef==1
+#                     @inbounds cons[Locb]+=2*pos[j,r]
+#                 elseif coef==im
+#                     @inbounds cons[Locb]-=2*pos[j,r+bs]
+#                 elseif coef==-1
+#                     @inbounds cons[Locb]-=2*pos[j,r]
+#                 else
+#                     @inbounds cons[Locb]+=2*pos[j,r+bs]
+#                 end
+#             end
+#         end
+#     end
+#     bc=zeros(ltsupp)
+#     for i=1:length(supp)
+#         Locb=bfind(tsupp, ltsupp, supp[i])
+#         if Locb==0
+#            @error "The monomial basis is not enough!"
+#            return nothing,nothing
+#         else
+#            bc[Locb]=coe[i]
+#         end
+#     end
+#     @variable(model, lower)
+#     cons[1]+=lower
+#     @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
+#     @objective(model, Max, lower)
+#     optimize!(model)
+#     status=termination_status(model)
+#     objv = objective_value(model)
+#     if status!=MOI.OPTIMAL
+#        println("termination status: $status")
+#        status=primal_status(model)
+#        println("solution status: $status")
+#     end
+#     println("optimum = $objv")
+#     if correlation==true
+#         maxl=min(Int(n/3), ceil(Int, L/2))
+#         dual_var=-dual.(con)
+#         cor=zeros(3, maxl-1)
+#         for i=1:maxl-1, j=1:3
+#             word=UInt16[j; 3*i+j]
+#             Locb=bfind(tsupp, ltsupp, word)
+#             cor[j, i]=dual_var[Locb]
+#         end
+#     else
+#         cor=nothing
+#     end
+#     return objv,cor
+# end
