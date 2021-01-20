@@ -1,8 +1,8 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", sec=false, rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", extra=false, rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
-        basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true, sec=sec)
+        basis[i+1]=split_basis(L, d, i, lattice=lattice, cont=true, extra=extra)
         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
             bi,coef=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
@@ -382,7 +382,7 @@ function rot(label)
     end
 end
 
-function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
+function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
     if label>0
         basis=Vector{UInt16}[]
         if lattice=="chain"
@@ -402,9 +402,12 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
                         for i=1:L
                             push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L)])
                         end
-                        if sec==true
+                        if extra==true
                             for i=1:L
                                 push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
+                            end
+                            for i=1:L
+                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+2)+a[k][2], 3*L)])
                             end
                         end
                     else
@@ -414,7 +417,7 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
                         for i=1:L, j=1:L
                             push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][2]])
                         end
-                        if sec==true
+                        if extra==true
                             for i=1:L, j=1:L
                                 push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j, L=L)-1)+a[k][2]])
                             end
@@ -441,6 +444,28 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
                     push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+1)+a[3], 3*L)])
                 end
             end
+            if extra==true
+                for i=1:L
+                    push!(basis, [3*(i-1)+label;smod(3*i+label, 3*L);smod(3*(i+2)+label, 3*L)])
+                end
+                for i=1:L
+                    push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+2)+label, 3*L)])
+                end
+                for k=1:3, l=1:2
+                    a=rot(label)[l]*ones(Int, 3)
+                    a[k]=label
+                    for i=1:L
+                        push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
+                    end
+                end
+                for k=1:3, l=1:2
+                    a=rot(label)[l]*ones(Int, 3)
+                    a[k]=label
+                    for i=1:L
+                        push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
+                    end
+                end
+            end
         end
         if d>3
             a=[[label;label;rot(label)[1];rot(label)[2]], [label;rot(label)[1];label;rot(label)[2]], [label;rot(label)[1];rot(label)[2];label], [rot(label)[1];label;label;rot(label)[2]], [rot(label)[1];label;rot(label)[2];label], [rot(label)[1];rot(label)[2];label;label],
@@ -460,9 +485,12 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
                         for i=1:L
                             push!(basis, UInt16[3*(i-1)+k;smod(3*i+k, 3*L)])
                         end
-                        if sec==true
+                        if extra==true
                             for i=1:L
                                 push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
+                            end
+                            for i=1:L
+                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+2)+k, 3*L)])
                             end
                         end
                     else
@@ -472,7 +500,7 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
                         for i=1:L, j=1:L
                             push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j-1, L=L)-1)+k])
                         end
-                        if sec==true
+                        if extra==true
                             for i=1:L, j=1:L
                                 push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j, L=L)-1)+k])
                             end
@@ -492,6 +520,14 @@ function split_basis(L, d, label; lattice="chain", cont=true, sec=false)
             a=[[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
             for k=1:6, i=1:L
                 push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+1)+a[k][3], 3*L)])
+            end
+            if extra==true
+                for k=1:6, i=1:L
+                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
+                end
+                for k=1:6, i=1:L
+                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
+                end
             end
         end
         if d>3
