@@ -70,15 +70,15 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                     end
                     reig[l+1][r1, r2]=1
                     if coef[end]!=0
-                        reig[l+1][r1, r2]+=(-1)^l*mvar[Locb[end]]
+                        @inbounds add_to_expression!(reig[l+1][r1, r2], (-1)^l, mvar[Locb[end]])
                     end
                     for r=1:Int(L/2)-1
                         if coef[r]^2==1&&abs(cos(2*pi*r*l/L))>=1e-8
-                            reig[l+1][r1, r2]+=2*coef[r]*cos(2*pi*r*l/L)*mvar[Locb[r]]
+                            @inbounds add_to_expression!(reig[l+1][r1, r2], 2*coef[r]*cos(2*pi*r*l/L), mvar[Locb[r]])
                         elseif coef[r]==im&&abs(sin(2*pi*r*l/L))>=1e-8
-                            reig[l+1][r1, r2]-=2*sin(2*pi*r*l/L)*mvar[Locb[r]]
+                            @inbounds add_to_expression!(reig[l+1][r1, r2], -2*sin(2*pi*r*l/L), mvar[Locb[r]])
                         elseif coef[r]==-im&&abs(sin(2*pi*r*l/L))>=1e-8
-                            reig[l+1][r1, r2]+=2*sin(2*pi*r*l/L)*mvar[Locb[r]]
+                            @inbounds add_to_expression!(reig[l+1][r1, r2], 2*sin(2*pi*r*l/L), mvar[Locb[r]])
                         end
                     end
                 end
@@ -106,24 +106,24 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                     for r=0:L-1
                         if coef[r+1]^2==1
                             if abs(cos(2*pi*r*l/L))>=1e-8
-                                reig[l+1][r1, r2]+=coef[r+1]*cos(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(reig[l+1][r1, r2], coef[r+1]*cos(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                             if abs(sin(2*pi*r*l/L))>=1e-8
-                                ieig[l+1][r1, r2]+=coef[r+1]*sin(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(ieig[l+1][r1, r2], coef[r+1]*sin(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                         elseif coef[r+1]==im
                             if abs(sin(2*pi*r*l/L))>=1e-8
-                                reig[l+1][r1, r2]-=sin(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(reig[l+1][r1, r2], -sin(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                             if abs(cos(2*pi*r*l/L))>=1e-8
-                                ieig[l+1][r1, r2]+=cos(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(ieig[l+1][r1, r2], cos(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                         elseif coef[r+1]==-im
                             if abs(sin(2*pi*r*l/L))>=1e-8
-                                reig[l+1][r1, r2]+=sin(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(reig[l+1][r1, r2], sin(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                             if abs(cos(2*pi*r*l/L))>=1e-8
-                                ieig[l+1][r1, r2]-=cos(2*pi*r*l/L)*mvar[Locb[r+1]]
+                                @inbounds add_to_expression!(ieig[l+1][r1, r2], -cos(2*pi*r*l/L), mvar[Locb[r+1]])
                             end
                         end
                     end
@@ -148,7 +148,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             temp=UInt16[3*(i-1)+1;3*(j-1)+1]
             bi=reduce!(temp, L=L, lattice=lattice, rotation=rotation)[1]
             Locb=bfind(tsupp,ltsupp,bi)
-            J1+=3*mvar[Locb]
+            @inbounds add_to_expression!(J1, 3, mvar[Locb])
         end
         @constraint(model, J1==4*sector*(sector+1))
         # J2=AffExpr(0)
@@ -169,7 +169,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     obj=AffExpr(0)
     for i=1:length(supp)
         Locb=bfind(tsupp,ltsupp,supp[i])
-        obj+=coe[i]*mvar[Locb]
+        @inbounds add_to_expression!(obj, coe[i], mvar[Locb])
     end
     @constraint(model, mvar[1]==1)
     @objective(model, Min, obj)
@@ -406,9 +406,9 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                             for i=1:L
                                 push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
                             end
-                            for i=1:L
-                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+2)+a[k][2], 3*L)])
-                            end
+                            # for i=1:L
+                            #     push!(basis, [3*(i-1)+a[k][1];smod(3*(i+2)+a[k][2], 3*L)])
+                            # end
                         end
                     else
                         for i=1:L, j=1:L
@@ -444,28 +444,28 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                     push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+1)+a[3], 3*L)])
                 end
             end
-            if extra==true
-                for i=1:L
-                    push!(basis, [3*(i-1)+label;smod(3*i+label, 3*L);smod(3*(i+2)+label, 3*L)])
-                end
-                for i=1:L
-                    push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+2)+label, 3*L)])
-                end
-                for k=1:3, l=1:2
-                    a=rot(label)[l]*ones(Int, 3)
-                    a[k]=label
-                    for i=1:L
-                        push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
-                    end
-                end
-                for k=1:3, l=1:2
-                    a=rot(label)[l]*ones(Int, 3)
-                    a[k]=label
-                    for i=1:L
-                        push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
-                    end
-                end
-            end
+            # if extra==true
+            #     for i=1:L
+            #         push!(basis, [3*(i-1)+label;smod(3*i+label, 3*L);smod(3*(i+2)+label, 3*L)])
+            #     end
+            #     for i=1:L
+            #         push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+2)+label, 3*L)])
+            #     end
+            #     for k=1:3, l=1:2
+            #         a=rot(label)[l]*ones(Int, 3)
+            #         a[k]=label
+            #         for i=1:L
+            #             push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
+            #         end
+            #     end
+            #     for k=1:3, l=1:2
+            #         a=rot(label)[l]*ones(Int, 3)
+            #         a[k]=label
+            #         for i=1:L
+            #             push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
+            #         end
+            #     end
+            # end
         end
         if d>3
             a=[[label;label;rot(label)[1];rot(label)[2]], [label;rot(label)[1];label;rot(label)[2]], [label;rot(label)[1];rot(label)[2];label], [rot(label)[1];label;label;rot(label)[2]], [rot(label)[1];label;rot(label)[2];label], [rot(label)[1];rot(label)[2];label;label],
@@ -489,9 +489,9 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                             for i=1:L
                                 push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
                             end
-                            for i=1:L
-                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+2)+k, 3*L)])
-                            end
+                            # for i=1:L
+                            #     push!(basis, UInt16[3*(i-1)+k;smod(3*(i+2)+k, 3*L)])
+                            # end
                         end
                     else
                         for i=1:L, j=1:L
@@ -521,14 +521,14 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
             for k=1:6, i=1:L
                 push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+1)+a[k][3], 3*L)])
             end
-            if extra==true
-                for k=1:6, i=1:L
-                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
-                end
-                for k=1:6, i=1:L
-                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
-                end
-            end
+            # if extra==true
+            #     for k=1:6, i=1:L
+            #         push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
+            #     end
+            #     for k=1:6, i=1:L
+            #         push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
+            #     end
+            # end
         end
         if d>3
             a=[[1;1;1;1], [2;2;2;2], [3;3;3;3], [1;1;2;2], [1;2;1;2], [1;2;2;1], [2;1;1;2], [2;1;2;1], [2;2;1;1],
@@ -797,16 +797,16 @@ function blockpop(supp, coe, basis, blocks, cl, blocksize; solver="Mosek", QUIET
             bi,coef=reduce!(bi, translation=false)
             Locb=bfind(tsupp, ltsupp, bi)
             if r==j
-                @inbounds cons[Locb]+=pos[j,r]
+                @inbounds add_to_expression!(cons[Locb], pos[j,r])
             else
                 if coef==1
-                    @inbounds cons[Locb]+=2*pos[j,r]
+                    @inbounds add_to_expression!(cons[Locb], 2,  pos[j,r])
                 elseif coef==im
-                    @inbounds cons[Locb]-=2*pos[j,r+bs]
+                    @inbounds add_to_expression!(cons[Locb], -2,  pos[j,r+bs])
                 elseif coef==-1
-                    @inbounds cons[Locb]-=2*pos[j,r]
+                    @inbounds add_to_expression!(cons[Locb], -2,  pos[j,r])
                 else
-                    @inbounds cons[Locb]+=2*pos[j,r+bs]
+                    @inbounds add_to_expression!(cons[Locb], 2, pos[j,r+bs])
                 end
             end
         end
@@ -846,7 +846,7 @@ function get_clique(i, j, L)
     return clique
 end
 
-function get_cliques(A; CS=true)
+function get_points(A)
     points=Vector{Int}[]
     for i=minimum(A[1,:]):maximum(A[1,:]), j=minimum(A[2,:]):maximum(A[2,:])
         if !isodd(i)||!iseven(j)
@@ -856,11 +856,16 @@ function get_cliques(A; CS=true)
             end
         end
     end
+    sort!(points)
+    ind=[iseven(points[i][2]) for i=1:length(points)]
+    basepoints=points[ind]
+    return points,basepoints
+end
+
+function get_cliques(A; CS=true)
+    points,basepoints=get_points(A)
     lp=length(points)
     if CS==true
-        sort!(points)
-        ind=[iseven(points[i][2]) for i=1:lp]
-        basepoints=points[ind]
         cql=length(basepoints)
         cliques=Vector{Vector{UInt16}}(undef, cql)
         for i=1:cql
