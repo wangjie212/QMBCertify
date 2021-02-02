@@ -207,7 +207,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             end
         end
     else
-        cor=nothing
+        cor,cor4=nothing,nothing
     end
     return objv,cor,cor4
 end
