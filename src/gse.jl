@@ -184,18 +184,25 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     println("optimum = $objv")
     if correlation==true
         if lattice=="chain"
-            cor=zeros(Int(L/2))
+            cor0=zeros(Int(L/2))
             for i=1:Int(L/2)
                 word=UInt16[1; 3*i+1]
                 Locb=bfind(tsupp, ltsupp, word)
-                cor[i]=value(mvar[Locb])
+                cor0[i]=value(mvar[Locb])
             end
-            cor4=zeros(Int(L/2-1))
+            cor1=zeros(Int(L/2-1))
             for i=2:Int(L/2)
                 word=UInt16[1; 4; 3*(2i-2)+1; 3*(2i-1)+1]
                 word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
                 Locb=bfind(tsupp, ltsupp, word)
-                cor4[i-1]=value(mvar[Locb])
+                cor1[i-1]=value(mvar[Locb])
+            end
+            cor2=zeros(Int(L/2-2))
+            for i=3:Int(L/2)
+                word=UInt16[1; 4; 3*(i-1)+1; 3*i+1]
+                word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
+                Locb=bfind(tsupp, ltsupp, word)
+                cor2[i-1]=value(mvar[Locb])
             end
         else
             cor=zeros(L, L)
@@ -207,9 +214,9 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             end
         end
     else
-        cor,cor4=nothing,nothing
+        cor0,cor1,cor2=nothing,nothing,nothing
     end
-    return objv,cor,cor4
+    return objv,cor0,cor1,cor2
 end
 
 function bfind(A, l, a)
