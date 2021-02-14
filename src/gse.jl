@@ -416,14 +416,17 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                         for i=1:L
                             push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L)])
                         end
-                        if extra>0
-                            for s=1:extra, i=1:L
-                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+s)+a[k][2], 3*L)])
+                        # if extra>0
+                        #     for s=1:extra, i=1:L
+                        #         push!(basis, [3*(i-1)+a[k][1];smod(3*(i+s)+a[k][2], 3*L)])
+                        #     end
+                            for i=1:L
+                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L)])
                             end
-                            # for i=1:L
-                            #     push!(basis, [3*(i-1)+a[k][1];smod(3*(i+2)+a[k][2], 3*L)])
-                            # end
-                        end
+                            for i=1:L
+                                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+3)+a[k][2], 3*L)])
+                            end
+                        # end
                     else
                         for i=1:L, j=1:L
                             push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2]])
@@ -459,19 +462,19 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                 end
             end
             # if extra==true
-            #     for i=1:L
-            #         push!(basis, [3*(i-1)+label;smod(3*i+label, 3*L);smod(3*(i+2)+label, 3*L)])
-            #     end
+                for i=1:L
+                    push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+3)+label, 3*L)])
+                end
             #     for i=1:L
             #         push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+2)+label, 3*L)])
             #     end
-            #     for k=1:3, l=1:2
-            #         a=rot(label)[l]*ones(Int, 3)
-            #         a[k]=label
-            #         for i=1:L
-            #             push!(basis, [3*(i-1)+a[1];smod(3*i+a[2], 3*L);smod(3*(i+2)+a[3], 3*L)])
-            #         end
-            #     end
+                for k=1:3, l=1:2
+                    a=rot(label)[l]*ones(Int, 3)
+                    a[k]=label
+                    for i=1:L
+                        push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+3)+a[3], 3*L)])
+                    end
+                end
             #     for k=1:3, l=1:2
             #         a=rot(label)[l]*ones(Int, 3)
             #         a[k]=label
@@ -499,14 +502,17 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                         for i=1:L
                             push!(basis, UInt16[3*(i-1)+k;smod(3*i+k, 3*L)])
                         end
-                        if extra>0
-                            for s=1:extra, i=1:L
-                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+s)+k, 3*L)])
+                        # if extra>0
+                        #     for s=1:extra, i=1:L
+                        #         push!(basis, UInt16[3*(i-1)+k;smod(3*(i+s)+k, 3*L)])
+                        #     end
+                            for i=1:L
+                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+1)+k, 3*L)])
                             end
-                            # for i=1:L
-                            #     push!(basis, UInt16[3*(i-1)+k;smod(3*(i+2)+k, 3*L)])
-                            # end
-                        end
+                            for i=1:L
+                                push!(basis, UInt16[3*(i-1)+k;smod(3*(i+3)+k, 3*L)])
+                            end
+                        # end
                     else
                         for i=1:L, j=1:L
                             push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j, L=L)-1)+k])
@@ -536,12 +542,12 @@ function split_basis(L, d, label; lattice="chain", cont=true, extra=false)
                 push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+1)+a[k][3], 3*L)])
             end
             # if extra==true
-            #     for k=1:6, i=1:L
-            #         push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
-            #     end
-            #     for k=1:6, i=1:L
-            #         push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
-            #     end
+                for k=1:6, i=1:L
+                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L)])
+                end
+                # for k=1:6, i=1:L
+                #     push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+2)+a[k][3], 3*L)])
+                # end
             # end
         end
         if d>3
