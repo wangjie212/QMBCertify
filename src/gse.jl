@@ -488,7 +488,7 @@ function split_basis(L, d, label; lattice="chain", extra=0)
             [rot(label)[2];rot(label)[2];rot(label)[2];rot(label)[1]], [rot(label)[2];rot(label)[2];rot(label)[1];rot(label)[2]], [rot(label)[2];rot(label)[1];rot(label)[2];rot(label)[2]], [rot(label)[1];rot(label)[2];rot(label)[2];rot(label)[2]]]
             if lattice=="chain"
                 for k=1:20, i=1:L
-                    push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+                    push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+1)+a[k][3], 3*L);smod(3*(i+2)+a[k][4], 3*L)])
                 end
             else
                 for k=1:20, i=1:L, j=1:L
@@ -552,7 +552,7 @@ function split_basis(L, d, label; lattice="chain", extra=0)
             [1;1;3;3], [1;3;1;3], [1;3;3;1], [3;1;1;3], [3;1;3;1], [3;3;1;1], [3;3;2;2], [3;2;3;2], [3;2;2;3], [2;3;3;2], [2;3;2;3], [2;2;3;3]]
             if lattice=="chain"
                 for k=1:21, i=1:L
-                    push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+                    push!(basis, [3*(i-1)+a[k][1];smod(3*i+a[k][2], 3*L);smod(3*(i+1)+a[k][3], 3*L);smod(3*(i+2)+a[k][4], 3*L)])
                 end
             else
                 for k=1:21, i=1:L, j=1:L
