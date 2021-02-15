@@ -205,13 +205,14 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                 cor2[i-2]=value(mvar[Locb])
             end
         else
-            cor=zeros(L, L)
+            cor0=zeros(L, L)
             for i=1:L, j=1:L
                 word=UInt16[1; 3*(slabel(i, j, L=L)-1)+1]
                 word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
                 Locb=bfind(tsupp, ltsupp, word)
-                cor[i,j]=value(mvar[Locb])
+                cor0[i,j]=value(mvar[Locb])
             end
+            cor1,cor2=nothing,nothing
         end
     else
         cor0,cor1,cor2=nothing,nothing,nothing
@@ -428,18 +429,55 @@ function split_basis(L, d, label; lattice="chain", extra=0)
                     for i=1:L, j=1:L
                         push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j-1, i+j, L=L)-1)+a[k][2]])
                     end
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j+1, L=L)-1)+a[k][2]])
+                    end
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+2, i+j-1, L=L)-1)+a[k][2]])
+                    end
                 end
             end
         end
         if d>2
-            for i=1:L
-                push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+3)+label, 3*L)])
-            end
-            for k=1:3, l=1:2
-                a=rot(label)[l]*ones(Int, 3)
-                a[k]=label
+            if lattice=="chain"
                 for i=1:L
-                    push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+3)+a[3], 3*L)])
+                    push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+3)+label, 3*L)])
+                end
+                for k=1:3, l=1:2
+                    a=rot(label)[l]*ones(Int, 3)
+                    a[k]=label
+                    for i=1:L
+                        push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+3)+a[3], 3*L)])
+                    end
+                end
+            else
+                for i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j, i+j, L=L)-1)+label;3*(slabel(j+1, i+j, L=L)-1)+label])
+                end
+                for i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j, i+j, L=L)-1)+label;3*(slabel(j-1, i+j, L=L)-1)+label])
+                end
+                for i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j+1, i+j-1, L=L)-1)+label;3*(slabel(j+1, i+j, L=L)-1)+label])
+                end
+                for i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j-1, i+j-1, L=L)-1)+label;3*(slabel(j-1, i+j, L=L)-1)+label])
+                end
+                for k=1:3, l=1:2
+                    a=rot(label)[l]*ones(Int, 3)
+                    a[k]=label
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j, i+j, L=L)-1)+a[2];3*(slabel(j+1, i+j, L=L)-1)+a[3]])
+                    end
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j, i+j, L=L)-1)+a[2];3*(slabel(j-1, i+j, L=L)-1)+a[3]])
+                    end
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j+1, i+j-1, L=L)-1)+a[2];3*(slabel(j+1, i+j, L=L)-1)+a[3]])
+                    end
+                    for i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j-1, i+j-1, L=L)-1)+a[2];3*(slabel(j-1, i+j, L=L)-1)+a[3]])
+                    end
                 end
             end
         end
@@ -448,8 +486,14 @@ function split_basis(L, d, label; lattice="chain", extra=0)
             [label;label;rot(label)[2];rot(label)[1]], [label;rot(label)[2];label;rot(label)[1]], [label;rot(label)[2];rot(label)[1];label], [rot(label)[2];label;label;rot(label)[1]], [rot(label)[2];label;rot(label)[1];label], [rot(label)[2];rot(label)[1];label;label],
             [rot(label)[1];rot(label)[1];rot(label)[1];rot(label)[2]], [rot(label)[1];rot(label)[1];rot(label)[2];rot(label)[1]], [rot(label)[1];rot(label)[2];rot(label)[1];rot(label)[1]], [rot(label)[2];rot(label)[1];rot(label)[1];rot(label)[1]],
             [rot(label)[2];rot(label)[2];rot(label)[2];rot(label)[1]], [rot(label)[2];rot(label)[2];rot(label)[1];rot(label)[2]], [rot(label)[2];rot(label)[1];rot(label)[2];rot(label)[2]], [rot(label)[1];rot(label)[2];rot(label)[2];rot(label)[2]]]
-            for k=1:20, i=1:L
-                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+            if lattice=="chain"
+                for k=1:20, i=1:L
+                    push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+                end
+            else
+                for k=1:20, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][4]])
+                end
             end
         end
     else
@@ -473,20 +517,47 @@ function split_basis(L, d, label; lattice="chain", extra=0)
                     for i=1:L, j=1:L
                         push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j-1, i+j, L=L)-1)+k])
                     end
+                    for i=1:L, j=1:L
+                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j+1, L=L)-1)+k])
+                    end
+                    for i=1:L, j=1:L
+                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+2, i+j-1, L=L)-1)+k])
+                    end
                 end
             end
         end
         if d>2
             a=[[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
-            for k=1:6, i=1:L
-                push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L)])
+            if lattice=="chain"
+                for k=1:6, i=1:L
+                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L)])
+                end
+            else
+                for k=1:6, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3]])
+                end
+                for k=1:6, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j-1, i+j, L=L)-1)+a[k][3]])
+                end
+                for k=1:6, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3]])
+                end
+                for k=1:6, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j-1, i+j-1, L=L)-1)+a[k][2];3*(slabel(j-1, i+j, L=L)-1)+a[k][3]])
+                end
             end
         end
         if d>3
             a=[[1;1;1;1], [2;2;2;2], [3;3;3;3], [1;1;2;2], [1;2;1;2], [1;2;2;1], [2;1;1;2], [2;1;2;1], [2;2;1;1],
             [1;1;3;3], [1;3;1;3], [1;3;3;1], [3;1;1;3], [3;1;3;1], [3;3;1;1], [3;3;2;2], [3;2;3;2], [3;2;2;3], [2;3;3;2], [2;3;2;3], [2;2;3;3]]
-            for k=1:21, i=1:L
-                push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+            if lattice=="chain"
+                for k=1:21, i=1:L
+                    push!(basis, [3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L);smod(3*(i+5)+a[k][4], 3*L)])
+                end
+            else
+                for k=1:21, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][4]])
+                end
             end
         end
     end
@@ -880,6 +951,16 @@ function Kagome_basis(clique, d)
     end
     return basis
 end
+
+# function reduce6(a::Vector{UInt16}, L)
+#     l=length(a)
+#     ra=zeros(UInt16, l)
+#     for j=1:l
+#         loc=location(ceil(Int, a[j]/3))
+#         ra[j]=3*slabel(loc[2], loc[1], L=L)+a[j]-3*ceil(UInt16, a[j]/3)
+#     end
+#     return min(a, ra)
+# end
 
 # function GSE0(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", totalspin=false, sector=0, correlation=false)
 #     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
