@@ -1,8 +1,8 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", extra=0, rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
-        basis[i+1]=split_basis(L, d, i, lattice=lattice, extra=extra)
+        basis[i+1]=split_basis(L, d, i, lattice=lattice, extra=extra, three_type=three_type)
         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
             bi,coef=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
@@ -397,7 +397,7 @@ function rot(label)
     end
 end
 
-function split_basis(L, d, label; lattice="chain", extra=0)
+function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
     if label>0
         basis=Vector{UInt16}[]
         if lattice=="chain"
@@ -441,13 +441,13 @@ function split_basis(L, d, label; lattice="chain", extra=0)
         if d>2
             if lattice=="chain"
                 for i=1:L
-                    push!(basis, [3*(i-1)+label;smod(3*(i+1)+label, 3*L);smod(3*(i+3)+label, 3*L)])
+                    push!(basis, [3*(i-1)+label;smod(3*(i-1+three_type[1])+label, 3*L);smod(3*(i-1+sum(three_type))+label, 3*L)])
                 end
                 for k=1:3, l=1:2
                     a=rot(label)[l]*ones(Int, 3)
                     a[k]=label
                     for i=1:L
-                        push!(basis, [3*(i-1)+a[1];smod(3*(i+1)+a[2], 3*L);smod(3*(i+3)+a[3], 3*L)])
+                        push!(basis, [3*(i-1)+a[1];smod(3*(i-1+three_type[1])+a[2], 3*L);smod(3*(i-1+sum(three_type))+a[3], 3*L)])
                     end
                 end
             else
@@ -530,7 +530,7 @@ function split_basis(L, d, label; lattice="chain", extra=0)
             a=[[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
             if lattice=="chain"
                 for k=1:6, i=1:L
-                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i+1)+a[k][2], 3*L);smod(3*(i+3)+a[k][3], 3*L)])
+                    push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i-1+three_type[1])+a[k][2], 3*L);smod(3*(i-1+sum(three_type))+a[k][3], 3*L)])
                 end
             else
                 for k=1:6, i=1:L, j=1:L
