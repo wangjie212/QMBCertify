@@ -190,16 +190,16 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                 Locb=bfind(tsupp, ltsupp, word)
                 cor0[i]=value(mvar[Locb])
             end
-            cor1=zeros(Int(L/2-1))
-            for i=2:Int(L/2)
-                word=UInt16[1; 4; 3*(2i-2)+1; 3*(2i-1)+1]
+            cor1=zeros(Int(L/2-2))
+            for i=3:Int(L/2)
+                word=UInt16[1; 4; 3*(i-1)+1; 3*i+1]
                 word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
                 Locb=bfind(tsupp, ltsupp, word)
-                cor1[i-1]=value(mvar[Locb])
+                cor1[i-2]=value(mvar[Locb])
             end
             cor2=zeros(Int(L/2-2))
             for i=3:Int(L/2)
-                word=UInt16[1; 4; 3*(i-1)+1; 3*i+1]
+                word=UInt16[1; 4; 3*i; 3*i+3]
                 word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
                 Locb=bfind(tsupp, ltsupp, word)
                 cor2[i-2]=value(mvar[Locb])
