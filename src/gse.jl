@@ -1,4 +1,4 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int, energy; QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
@@ -172,6 +172,9 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         @inbounds add_to_expression!(obj, coe[i], mvar[Locb])
     end
     @constraint(model, mvar[1]==1)
+    Locb = bfind(tsupp, ltsupp, [1;4])
+    @constraint(model, 3/4*mvar[Locb]<=energy[2])
+    @constraint(model, 3/4*mvar[Locb]>=energy[1])
     @objective(model, Min, obj)
     optimize!(model)
     status=termination_status(model)
