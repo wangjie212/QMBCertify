@@ -1,4 +1,4 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int, energy; QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp=Vector{UInt16}[]
     for i=0:3
@@ -172,9 +172,11 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         @inbounds add_to_expression!(obj, coe[i], mvar[Locb])
     end
     @constraint(model, mvar[1]==1)
-    Locb = bfind(tsupp, ltsupp, [1;4])
-    @constraint(model, 3/4*mvar[Locb]<=energy[2])
-    @constraint(model, 3/4*mvar[Locb]>=energy[1])
+    if energy != []
+        Locb = bfind(tsupp, ltsupp, [1;4])
+        @constraint(model, 3/4*mvar[Locb]<=energy[2])
+        @constraint(model, 3/4*mvar[Locb]>=energy[1])
+    end
     @objective(model, Min, obj)
     optimize!(model)
     status=termination_status(model)
@@ -420,23 +422,9 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                         push!(basis, [3*(i-1)+a[k][1];smod(3*(i+s)+a[k][2], 3*L)])
                     end
                 else
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][2]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j, L=L)-1)+a[k][2]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j-1, i+j, L=L)-1)+a[k][2]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j+1, L=L)-1)+a[k][2]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+2, i+j-1, L=L)-1)+a[k][2]])
+                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [1;-2], [2;-1], [2;2]]
+                    for s=1:11, i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+a[k][2]])
                     end
                 end
             end
@@ -454,32 +442,15 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                     end
                 end
             else
-                for i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j, i+j, L=L)-1)+label;3*(slabel(j+1, i+j, L=L)-1)+label])
-                end
-                for i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j, i+j, L=L)-1)+label;3*(slabel(j-1, i+j, L=L)-1)+label])
-                end
-                for i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j+1, i+j-1, L=L)-1)+label;3*(slabel(j+1, i+j, L=L)-1)+label])
-                end
-                for i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j-1, i+j-1, L=L)-1)+label;3*(slabel(j-1, i+j, L=L)-1)+label])
+                tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
+                for s=1:4, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+label;3*(slabel(j+tb[s][3], i+j-1+tb[s][4], L=L)-1)+label])
                 end
                 for k=1:3, l=1:2
                     a=rot(label)[l]*ones(Int, 3)
                     a[k]=label
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j, i+j, L=L)-1)+a[2];3*(slabel(j+1, i+j, L=L)-1)+a[3]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j, i+j, L=L)-1)+a[2];3*(slabel(j-1, i+j, L=L)-1)+a[3]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j+1, i+j-1, L=L)-1)+a[2];3*(slabel(j+1, i+j, L=L)-1)+a[3]])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j-1, i+j-1, L=L)-1)+a[2];3*(slabel(j-1, i+j, L=L)-1)+a[3]])
+                    for s=1:4, i=1:L, j=1:L
+                        push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[1];3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+a[2];3*(slabel(j+tb[s][3], i+j-1+tb[s][4], L=L)-1)+a[3]])
                     end
                 end
             end
@@ -508,23 +479,9 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                         push!(basis, UInt16[3*(i-1)+k;smod(3*(i+s)+k, 3*L)])
                     end
                 else
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j, L=L)-1)+k])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j-1, L=L)-1)+k])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+1, i+j, L=L)-1)+k])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j-1, i+j, L=L)-1)+k])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j, i+j+1, L=L)-1)+k])
-                    end
-                    for i=1:L, j=1:L
-                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+2, i+j-1, L=L)-1)+k])
+                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [1;-2], [2;-1], [2;2]]
+                    for s=1:11, i=1:L, j=1:L
+                        push!(basis, UInt16[3*(slabel(j, i+j-1, L=L)-1)+k;3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+k])
                     end
                 end
             end
@@ -536,17 +493,9 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                     push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i-1+three_type[1])+a[k][2], 3*L);smod(3*(i-1+sum(three_type))+a[k][3], 3*L)])
                 end
             else
-                for k=1:6, i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3]])
-                end
-                for k=1:6, i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j, i+j, L=L)-1)+a[k][2];3*(slabel(j-1, i+j, L=L)-1)+a[k][3]])
-                end
-                for k=1:6, i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+1, i+j-1, L=L)-1)+a[k][2];3*(slabel(j+1, i+j, L=L)-1)+a[k][3]])
-                end
-                for k=1:6, i=1:L, j=1:L
-                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j-1, i+j-1, L=L)-1)+a[k][2];3*(slabel(j-1, i+j, L=L)-1)+a[k][3]])
+                tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
+                for s=1:4, k=1:6, i=1:L, j=1:L
+                    push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+a[k][2];3*(slabel(j+tb[s][3], i+j-1+tb[s][4], L=L)-1)+a[k][3]])
                 end
             end
         end
