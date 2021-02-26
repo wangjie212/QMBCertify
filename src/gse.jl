@@ -13,11 +13,12 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     end
     sort!(tsupp)
     unique!(tsupp)
-    ltsupp=length(tsupp)
-    if solver=="COSMO"
-        model=Model(optimizer_with_attributes(COSMO.Optimizer))
+    ltsupp = length(tsupp)
+    if solver == "COSMO"
+        model = Model(optimizer_with_attributes(COSMO.Optimizer))
+        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3)
     else
-        model=Model(optimizer_with_attributes(Mosek.Optimizer))
+        model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     mvar=@variable(model, [1:ltsupp])
