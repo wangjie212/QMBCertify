@@ -174,9 +174,13 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     end
     @constraint(model, mvar[1]==1)
     if energy != []
+        gsen = AffExpr(0)
         Locb = bfind(tsupp, ltsupp, [1;4])
-        @constraint(model, 3/4*mvar[Locb]<=energy[2])
-        @constraint(model, 3/4*mvar[Locb]>=energy[1])
+        gsen += 3/4*mvar[Locb]
+        Locb = bfind(tsupp, ltsupp, [1;10])
+        gsen += 3/4*mvar[Locb]
+        @constraint(model, gsen>=energy[1])
+        @constraint(model, gsen<=energy[2])
     end
     @objective(model, Min, obj)
     optimize!(model)
