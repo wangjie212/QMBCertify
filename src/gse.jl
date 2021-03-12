@@ -1,11 +1,11 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], rotation=false, totalspin=false, sector=0, correlation=false)
-    basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
-    tsupp=Vector{UInt16}[]
-    for i=0:3
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], totalspin=false, sector=0, correlation=false)
+    basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
+    tsupp = Vector{UInt16}[]
+    for i = 0:3
         basis[i+1]=split_basis(L, d, i, lattice=lattice, extra=extra, three_type=three_type)
         for j=1:length(basis[i+1]), k=j:length(basis[i+1])
             @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
-            bi,coef=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
+            bi,coef=reduce!(bi, L=L, lattice=lattice)
             if coef!=0
                 push!(tsupp, bi)
             end
@@ -16,13 +16,13 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        # set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3)
+        set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 5000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    mvar=@variable(model, [1:ltsupp])
-    for i=0:3
+    mvar = @variable(model, [1:ltsupp])
+    for i = 0:3
         if i==0
             k=Int((length(basis[1])-1)/L)
         else
@@ -36,7 +36,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                 ieig[1]=[AffExpr(0) for j1=1:k+1, j2=1:k+1]
                 reig[1][1,1]=AffExpr(1)
                 for l=1:k
-                    bi,coef=reduce!(basis[1][L*(l-1)+2], L=L, lattice=lattice, rotation=rotation)
+                    bi,coef=reduce!(basis[1][L*(l-1)+2], L=L, lattice=lattice)
                     if coef!=0
                         Locb=bfind(tsupp, ltsupp, bi)
                         reig[1][1,l+1]=sqrt(L)*mvar[Locb]
@@ -57,7 +57,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                     else
                         bi=[basis[i+1][L*(j1-1)+1]; basis[i+1][L*(j2-1)+r+1]]
                     end
-                    bi,coef[r]=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
+                    bi,coef[r]=reduce!(bi, L=L, lattice=lattice)
                     if coef[r]!=0
                         Locb[r]=bfind(tsupp, ltsupp, bi)
                     else
@@ -92,7 +92,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                     else
                         bi=[basis[i+1][L*(j1-1)+1]; basis[i+1][L*(j2-1)+r+1]]
                     end
-                    bi,coef[r+1]=reduce!(bi, L=L, lattice=lattice, rotation=rotation)
+                    bi,coef[r+1]=reduce!(bi, L=L, lattice=lattice)
                     if coef[r+1]!=0
                         Locb[r+1]=bfind(tsupp, ltsupp, bi)
                     else
@@ -147,7 +147,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         J1=AffExpr(0)
         for i=1:L, j=1:L
             temp=UInt16[3*(i-1)+1;3*(j-1)+1]
-            bi=reduce!(temp, L=L, lattice=lattice, rotation=rotation)[1]
+            bi=reduce!(temp, L=L, lattice=lattice)[1]
             Locb=bfind(tsupp,ltsupp,bi)
             @inbounds add_to_expression!(J1, 3, mvar[Locb])
         end
@@ -155,11 +155,11 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         # J2=AffExpr(0)
         # for j1=1:L, j2=1:L, k1=1:L, k2=1:L
         #     temp=UInt16[3*(j1-1)+1;3*(k1-1)+1;3*(j2-1)+1;3*(k2-1)+1]
-        #     bi=reduce!(temp, L=L, lattice=lattice, rotation=rotation)[1]
+        #     bi=reduce!(temp, L=L, lattice=lattice)[1]
         #     Locb=bfind(tsupp,ltsupp,bi)
         #     J2+=3*mvar[Locb]
         #     temp=UInt16[3*(j1-1)+1;3*(k1-1)+1;3*(j2-1)+2;3*(k2-1)+2]
-        #     bi,coef=reduce!(temp, L=L, lattice=lattice, rotation=rotation)
+        #     bi,coef=reduce!(temp, L=L, lattice=lattice)
         #     Locb=bfind(tsupp,ltsupp,bi)
         #     if coef^2==1
         #         J2+=6*coef*mvar[Locb]
@@ -203,14 +203,14 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             cor1=zeros(Int(L/2-2))
             for i=3:Int(L/2)
                 word=UInt16[1; 4; 3*(i-1)+1; 3*i+1]
-                word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
+                word=reduce!(word, L=L, lattice=lattice)[1]
                 Locb=bfind(tsupp, ltsupp, word)
                 cor1[i-2]=value(mvar[Locb])
             end
             cor2=zeros(Int(L/2-2))
             for i=3:Int(L/2)
                 word=UInt16[1; 4; 3*i; 3*i+3]
-                word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
+                word=reduce!(word, L=L, lattice=lattice)[1]
                 Locb=bfind(tsupp, ltsupp, word)
                 cor2[i-2]=value(mvar[Locb])
             end
@@ -218,7 +218,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             cor0=zeros(L, L)
             for i=1:L, j=1:L
                 word=UInt16[1; 3*(slabel(i, j, L=L)-1)+1]
-                word=reduce!(word, L=L, lattice=lattice, rotation=rotation)[1]
+                word=reduce!(word, L=L, lattice=lattice)[1]
                 Locb=bfind(tsupp, ltsupp, word)
                 cor0[i,j]=value(mvar[Locb])
             end
@@ -247,150 +247,130 @@ function bfind(A, l, a)
 end
 
 function reduce1!(a::Vector{UInt16})
-    la=length(a)
-    flag=1
-    while flag==1
-        ind=findfirst(x->ceil(Int, a[x]/3)>ceil(Int, a[x+1]/3), 1:la-1)
-        if ind!=nothing
-            temp=a[ind+1]
-            a[ind+1]=a[ind]
-            a[ind]=temp
-            flag=1
+    la = length(a)
+    flag = 1
+    while flag == 1
+        ind = findfirst(x->ceil(Int, a[x]/3) > ceil(Int, a[x+1]/3), 1:la-1)
+        if ind != nothing
+            temp = a[ind+1]
+            a[ind+1] = a[ind]
+            a[ind] = temp
+            flag = 1
         else
-            flag=0
+            flag = 0
         end
     end
     return a
 end
 
 function reduce2!(a::Vector{UInt16})
-    la=length(a)
-    flag=1
-    coef=1
-    while flag==1
-        ind=findfirst(x->a[x]!=a[x+1]&&ceil(Int, a[x]/3)==ceil(Int, a[x+1]/3), 1:la-1)
-        if ind!=nothing
+    la = length(a)
+    flag = 1
+    coef = 1
+    while flag == 1
+        ind = findfirst(x->a[x]!=a[x+1]&&ceil(Int, a[x]/3)==ceil(Int, a[x+1]/3), 1:la-1)
+        if ind != nothing
             if mod(a[ind], 3)==1&&mod(a[ind+1], 3)==2
-                a[ind]+=UInt16(2)
-                coef*=im
+                a[ind] += UInt16(2)
+                coef *= im
             elseif mod(a[ind], 3)==2&&mod(a[ind+1], 3)==1
-                a[ind]+=UInt16(1)
-                coef*=-im
+                a[ind] += UInt16(1)
+                coef *= -im
             elseif mod(a[ind], 3)==1&&mod(a[ind+1], 3)==0
-                a[ind]+=UInt16(1)
-                coef*=-im
+                a[ind] += UInt16(1)
+                coef *= -im
             elseif mod(a[ind], 3)==0&&mod(a[ind+1], 3)==1
-                a[ind]-=UInt16(1)
-                coef*=im
+                a[ind] -= UInt16(1)
+                coef *= im
             elseif mod(a[ind], 3)==2&&mod(a[ind+1], 3)==0
-                a[ind]-=UInt16(1)
-                coef*=im
+                a[ind] -= UInt16(1)
+                coef *= im
             else
-                a[ind]-=UInt16(2)
-                coef*=-im
+                a[ind] -= UInt16(2)
+                coef *= -im
             end
             deleteat!(a, ind+1)
-            la-=1
-            flag=1
+            la -= 1
+            flag = 1
         else
-            flag=0
+            flag = 0
         end
     end
     return a,coef
 end
 
 function reduce3!(a::Vector{UInt16})
-    i=1
-    while i<length(a)
-        if a[i]==a[i+1]
+    i = 1
+    while i < length(a)
+        if a[i] == a[i+1]
             deleteat!(a, i)
             deleteat!(a, i)
         else
-            i+=1
+            i += 1
         end
     end
     return a
 end
 
-function check(a::Vector{UInt16})
-    b=mod.(a, 3)
-    if any(i->isodd(count(isequal(i), b)), 0:2)
-        return false
-    end
-    return true
+function iszero(a::Vector{UInt16})
+    return any(i->isodd(count(isequal(i), mod.(a,3))), 0:2)
 end
 
-function reduce4!(a::Vector{UInt16}; L=0, lattice="chain")
-    l=length(a)
-    if lattice=="chain"&&l>0
-        loc=UInt16[ceil(UInt16, a[i]/3) for i=1:l]
-        b=[[loc[i:end];loc[1:i-1].+UInt16(L)].-loc[i] for i=1:l]
-        ind=findmini(b)
-        a=convert(Vector{UInt16}, [a[ind:end];a[1:ind-1].+3*L].-3*(loc[ind]-1))
-    else
-        if l==1&&a[1]>3
-            a.-=UInt16(3)*(ceil(UInt16, a[1]/3)-UInt16(1))
-        elseif l>1
-            loc=[location(ceil(Int, a[i]/3)) for i=1:l]
-            pa=Vector{UInt16}[]
-            for i=1:l
-                temp=zeros(UInt16, l)
-                for j=1:l
-                    p=slabel(loc[j][1]-loc[i][1]+1, loc[j][2]-loc[i][2]+1, L=L)
-                    temp[j]=3*p+a[j]-3*ceil(UInt16, a[j]/3)
-                end
-                push!(pa, sort(temp))
+function reduce4(a::Vector{UInt16}, L; lattice="chain")
+    l = length(a)
+    if l > 0
+        pa = Vector{UInt16}[]
+        if lattice == "chain"
+            for i = 1:l
+                ta = [a[i:end];a[1:i-1].+3*L].-3*(ceil(Int, a[i]/3)-1)
+                append!(pa, perm(ta))
             end
-            a=findmin(pa)[1]
+        else
+            loc = [location(ceil(Int, a[i]/3)) for i=1:l]
+            for i = 1:l
+                temp = zeros(UInt16, l)
+                for j = 1:l
+                    p = slabel(loc[j][1]-loc[i][1]+1, loc[j][2]-loc[i][2]+1, L=L)
+                    temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                end
+                append!(pa, perm(sort(temp)))
+            end
         end
-    end
-    return a
-end
-
-function reduce5(a::Vector{UInt16})
-    ra=smod.(a, 3)
-    ind=[[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
-    ma=findmin([ind[i][ra] for i=1:6])[1]
-    return convert(Vector{UInt16}, 3*(ceil.(UInt16, a./3).-1).+ma)
-end
-
-function findmini(b::Vector{Vector{UInt16}})
-    ind = sum.(b).==minimum(sum.(b))
-    if count(ind)==1
-        return findfirst(ind)
+        return findmin(pa)[1]
     else
-        return findmin(b[ind])[2]
+        return a
     end
 end
 
-function reduce!(a::Vector{UInt16}; L=0, lattice="chain", translation=true, rotation=false)
+function perm(a)
+    ra = smod.(a, 3)
+    sym = [[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
+    return [UInt16.(3*(ceil.(Int, a./3).-1) .+ sym[i][ra]) for i=1:6]
+end
+
+function reduce!(a::Vector{UInt16}; L=0, lattice="chain", symmetry=true)
     reduce1!(a)
     reduce3!(a)
-    a,coef=reduce2!(a)
+    a,coef = reduce2!(a)
     reduce3!(a)
-    if translation==true
-        if check(a)
-            a=reduce4!(a, L=L, lattice=lattice)
-        else
-            coef=0
-        end
-    end
-    if rotation==true
-        a=reduce5(a)
+    if iszero(a)
+        coef = 0
+    elseif symmetry == true
+        a = reduce4(a, L, lattice=lattice)
     end
     return a,coef
 end
 
 function slabel(i, j; L=0)
-    i=mod(i, L)==0 ? L : mod(i, L)
-    j=mod(j, L)==0 ? L : mod(j, L)
-    r=max(i,j)
-    return r==i ? (r-1)^2+j : r^2+1-i
+    i = mod(i, L)==0 ? L : mod(i, L)
+    j = mod(j, L)==0 ? L : mod(j, L)
+    r = max(i,j)
+    return r == i ? (r-1)^2+j : r^2+1-i
 end
 
 function location(p)
-    r=ceil(Int, sqrt(p))
-    if p-(r-1)^2<=r
+    r = ceil(Int, sqrt(p))
+    if p-(r-1)^2 <= r
         return r, p-(r-1)^2
     else
         return r^2+1-p, r
@@ -398,9 +378,9 @@ function location(p)
 end
 
 function rot(label)
-    if label==1
+    if label == 1
         return 2,3
-    elseif label==2
+    elseif label == 2
         return 3,1
     else
         return 1,2
@@ -522,8 +502,8 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
 end
 
 function smod(i, s)
-    r=mod(i, s)
-    return r==0 ? s : r
+    r = mod(i, s)
+    return r == 0 ? s : r
 end
 
 function get_ncbasis(n, d; ind=UInt16[i for i=1:n])
@@ -645,7 +625,7 @@ function get_ncgraph(tsupp, basis)
     ltsupp=length(tsupp)
     for i = 1:lb, j = i+1:lb
         bi = [basis[i][end:-1:1]; basis[j]]
-        bi=reduce!(bi, translation=false)[1]
+        bi=reduce!(bi, symmetrty=false)[1]
         if bfind(tsupp, ltsupp, bi)!=0
            add_edge!(G, i, j)
         end
@@ -754,7 +734,7 @@ function blockpop(supp, coe, basis, blocks, cl, blocksize; solver="Mosek", QUIET
     cql=length(cl)
     for k=1:cql, i=1:cl[k], j=1:blocksize[k][i], r=j:blocksize[k][i]
         @inbounds bi=[basis[k][blocks[k][i][j]]; basis[k][blocks[k][i][r]]]
-        bi=reduce!(bi, translation=false)[1]
+        bi=reduce!(bi, symmetrty=false)[1]
         push!(tsupp, bi)
     end
     sort!(tsupp)
@@ -774,7 +754,7 @@ function blockpop(supp, coe, basis, blocks, cl, blocksize; solver="Mosek", QUIET
             @constraint(model, pos[j,r]==pos[j+bs,r+bs])
             @constraint(model, pos[r,j+bs]+pos[j,r+bs]==0)
             @inbounds bi = [basis[k][blocks[k][i][j]]; basis[k][blocks[k][i][r]]]
-            bi,coef=reduce!(bi, translation=false)
+            bi,coef=reduce!(bi, symmetrty=false)
             Locb=bfind(tsupp, ltsupp, bi)
             if r==j
                 @inbounds add_to_expression!(cons[Locb], pos[j,r])
@@ -909,7 +889,7 @@ function Kagome_basis(clique, d)
     return basis
 end
 
-# function reduce6(a::Vector{UInt16}, L)
+# function reduce5(a::Vector{UInt16}, L)
 #     l=length(a)
 #     ra=zeros(UInt16, l)
 #     for j=1:l
