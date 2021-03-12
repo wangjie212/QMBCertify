@@ -1,12 +1,13 @@
-function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain", solver="Mosek", extra=0, three_type=[1;1], totalspin=false, sector=0, correlation=false)
+function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false,
+    lattice="chain", solver="Mosek", extra=0, three_type=[1;1], totalspin=false, sector=0, correlation=false)
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp = Vector{UInt16}[]
     for i = 0:3
-        basis[i+1]=split_basis(L, d, i, lattice=lattice, extra=extra, three_type=three_type)
-        for j=1:length(basis[i+1]), k=j:length(basis[i+1])
-            @inbounds bi=[basis[i+1][j]; basis[i+1][k]]
-            bi,coef=reduce!(bi, L=L, lattice=lattice)
-            if coef!=0
+        basis[i+1] = split_basis(L, d, i, lattice=lattice, extra=extra, three_type=three_type)
+        for j = 1:length(basis[i+1]), k = j:length(basis[i+1])
+            @inbounds bi = [basis[i+1][j]; basis[i+1][k]]
+            bi,coef = reduce!(bi, L=L, lattice=lattice)
+            if coef != 0
                 push!(tsupp, bi)
             end
         end
@@ -16,7 +17,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 5000)
+        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 10000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
@@ -143,7 +144,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             @constraint(model, Symmetric(pos) in PSDCone())
         end
     end
-    if totalspin==true
+    if totalspin == true
         J1=AffExpr(0)
         for i=1:L, j=1:L
             temp=UInt16[3*(i-1)+1;3*(j-1)+1]
@@ -167,32 +168,32 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         # end
         # @constraint(model, J2==16*sector^2*(sector+1)^2)
     end
-    obj=AffExpr(0)
-    for i=1:length(supp)
-        Locb=bfind(tsupp,ltsupp,supp[i])
+    obj = AffExpr(0)
+    for i = 1:length(supp)
+        Locb = bfind(tsupp,ltsupp,supp[i])
         @inbounds add_to_expression!(obj, coe[i], mvar[Locb])
     end
     @constraint(model, mvar[1]==1)
     if energy != []
         gsen = AffExpr(0)
         Locb = bfind(tsupp, ltsupp, [1;4])
-        gsen += 3/4*mvar[Locb]
-        Locb = bfind(tsupp, ltsupp, [1;10])
-        gsen += 3/4*mvar[Locb]
+        gsen += 3/2*mvar[Locb]
+        # Locb = bfind(tsupp, ltsupp, [1;10])
+        # gsen += 3/4*mvar[Locb]
         @constraint(model, gsen>=energy[1])
         @constraint(model, gsen<=energy[2])
     end
     @objective(model, Min, obj)
     optimize!(model)
-    status=termination_status(model)
+    status = termination_status(model)
     objv = objective_value(model)
-    if status!=MOI.OPTIMAL
+    if status != MOI.OPTIMAL
        println("termination status: $status")
-       status=primal_status(model)
+       status = primal_status(model)
        println("solution status: $status")
     end
     println("optimum = $objv")
-    if correlation==true
+    if correlation == true
         if lattice=="chain"
             cor0=zeros(Int(L/2))
             for i=1:Int(L/2)
@@ -225,7 +226,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             cor1,cor2=nothing,nothing
         end
     else
-        cor0,cor1,cor2=nothing,nothing,nothing
+        cor0,cor1,cor2 = nothing,nothing,nothing
     end
     return objv,cor0,cor1,cor2
 end
@@ -342,6 +343,16 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
     end
 end
 
+function reduce5(a::Vector{UInt16}, L)
+    l = length(a)
+    ra = zeros(UInt16, l)
+    for j = 1:l
+        loc = location(ceil(Int, a[j]/3))
+        ra[j] = 3*slabel(loc[2], loc[1], L=L)+a[j]-3*ceil(Int, a[j]/3)
+    end
+    return min(a, ra)
+end
+
 function perm(a)
     ra = smod.(a, 3)
     sym = [[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
@@ -357,6 +368,9 @@ function reduce!(a::Vector{UInt16}; L=0, lattice="chain", symmetry=true)
         coef = 0
     elseif symmetry == true
         a = reduce4(a, L, lattice=lattice)
+    end
+    if lattice == "square"
+        a = reduce5(a, L)
     end
     return a,coef
 end
@@ -888,16 +902,6 @@ function Kagome_basis(clique, d)
     end
     return basis
 end
-
-# function reduce5(a::Vector{UInt16}, L)
-#     l=length(a)
-#     ra=zeros(UInt16, l)
-#     for j=1:l
-#         loc=location(ceil(Int, a[j]/3))
-#         ra[j]=3*slabel(loc[2], loc[1], L=L)+a[j]-3*ceil(UInt16, a[j]/3)
-#     end
-#     return min(a, ra)
-# end
 
 # function GSE0(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; QUIET=false, lattice="chain", totalspin=false, sector=0, correlation=false)
 #     basis=Vector{Vector{Vector{UInt16}}}(undef, 4)
