@@ -17,7 +17,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 30000)
+        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 10000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
@@ -177,9 +177,9 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     if energy != []
         gsen = AffExpr(0)
         Locb = bfind(tsupp, ltsupp, [1;4])
-        gsen += 3/2*mvar[Locb]
-        # Locb = bfind(tsupp, ltsupp, [1;10])
-        # gsen += 3/4*mvar[Locb]
+        gsen += 3/4*mvar[Locb]
+        Locb = bfind(tsupp, ltsupp, [1;10])
+        gsen += 3/4*mvar[Locb]
         @constraint(model, gsen>=energy[1])
         @constraint(model, gsen<=energy[2])
     end
@@ -369,9 +369,9 @@ function reduce!(a::Vector{UInt16}; L=0, lattice="chain", symmetry=true)
     elseif symmetry == true
         a = reduce4(a, L, lattice=lattice)
     end
-    if lattice == "square"
-        a = reduce5(a, L)
-    end
+    # if lattice == "square"
+    #     a = reduce5(a, L)
+    # end
     return a,coef
 end
 
