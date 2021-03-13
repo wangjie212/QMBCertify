@@ -26,10 +26,20 @@ deps = ["Compat", "CredentialsHandler", "Libdl", "Pkg", "SHA", "TOML", "Test"]
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
 
 [[COSMO]]
-deps = ["DataStructures", "LinearAlgebra", "MathOptInterface", "Pkg", "Printf", "QDLDL", "Random", "Requires", "SparseArrays", "Statistics", "SuiteSparse", "Test", "UnsafeArrays"]
-git-tree-sha1 = "9ab45c15bf4b09314e6bf3f65bd94420c88df458"
+deps = ["AMD", "COSMOAccelerators", "DataStructures", "IterTools", "LinearAlgebra", "MathOptInterface", "Pkg", "Printf", "QDLDL", "Random", "Reexport", "Requires", "SparseArrays", "Statistics", "SuiteSparse", "Test", "UnsafeArrays"]
+git-tree-sha1 = "599a529fe19f86d5e14bc45c1027f44ae85e9ffc"
+repo-rev = "with_multi_threading"
+repo-url = "https://github.com/oxfordcontrol/COSMO.jl.git"
 uuid = "1e616198-aa4e-51ec-90a2-23f7fbd31d8d"
-version = "0.7.4"
+version = "0.8.0"
+
+[[COSMOAccelerators]]
+deps = ["LinearAlgebra", "Random", "SparseArrays", "Test"]
+git-tree-sha1 = "b1153b40dd95f856e379f25ae335755ecc24298e"
+repo-rev = "master"
+repo-url = "https://github.com/oxfordcontrol/COSMOAccelerators.jl"
+uuid = "bbd8fffe-5ad0-4d78-a55e-85575421b4ac"
+version = "0.1.0"
 
 [[Calculus]]
 deps = ["LinearAlgebra"]
@@ -112,6 +122,11 @@ uuid = "83e8ac13-25f8-5344-8a64-a9f2b223428f"
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
+[[IterTools]]
+git-tree-sha1 = "05110a2ab1fc5f932622ffea2a003221f4782c18"
+uuid = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
+version = "1.3.0"
+
 [[JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
@@ -155,9 +170,11 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[MathOptInterface]]
 deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "JSON", "JSONSchema", "LinearAlgebra", "MutableArithmetics", "OrderedCollections", "SparseArrays", "Test", "Unicode"]
-git-tree-sha1 = "cd2049c055c7d192a235670d50faa375361624ba"
+git-tree-sha1 = "a5e0c336130729cf1a2f14d619d86707db7a22a4"
+repo-rev = "master"
+repo-url = "https://github.com/jump-dev/MathOptInterface.jl.git"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-version = "0.9.14"
+version = "0.9.20"
 
 [[MbedTLS]]
 deps = ["BinaryProvider", "Dates", "Libdl", "Pkg", "Random", "Sockets"]
@@ -221,6 +238,13 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 [[Random]]
 deps = ["Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[[Reexport]]
+git-tree-sha1 = "3a7944e7d2184c7724a0b636c6008f36d25ecde6"
+repo-rev = "master"
+repo-url = "https://github.com/simonster/Reexport.jl.git"
+uuid = "189a3867-3050-52da-a836-e630ba90ab69"
+version = "1.0.0"
 
 [[Requires]]
 deps = ["UUIDs"]
