@@ -8,6 +8,7 @@ using COSMO
 
 export GSE1, GSE2, slabel
 
+include("impose.jl")
 include("gse.jl")
 include("chordal_extension.jl")
 include("clique_merge.jl")
