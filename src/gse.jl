@@ -189,7 +189,8 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     end
     @constraint(model, mvar[1]==1)
     if posepsd == true
-        posepsd!(model, mvar, tsupp, L)
+        posepsd6!(model, mvar, tsupp, L)
+        posepsd8!(model, mvar, tsupp, L)
     end
     if energy != []
         gsen = AffExpr(0)
@@ -243,7 +244,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     else
         cor0,cor1,cor2 = nothing,nothing,nothing
     end
-    return objv,cor0,cor1,cor2
+    return objv,tsupp,value.(mvar)
 end
 
 function bfind(A, l, a)
@@ -340,6 +341,9 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
             for i = 1:l
                 ta = [a[i:end];a[1:i-1].+3*L].-3*(ceil(Int, a[i]/3)-1)
                 append!(pa, perm(ta))
+                M = ceil(Int, ta[l]/3)
+                ma = [3*(M-ceil(Int,ta[l+1-j]/3))+smod(ta[l+1-j],3) for j=1:l]
+                append!(pa, perm(ma))
             end
         else
             loc = [location(ceil(Int, a[i]/3)) for i=1:l]
