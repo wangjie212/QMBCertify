@@ -12,6 +12,17 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             end
         end
     end
+    if posepsd == true
+        for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3, u = 0:3, v = 0:3
+            # sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
+            # for r = 1:3
+                mon = mono([i,j,k,l,s,t,u,v])
+                if !iszero(mon)
+                    push!(tsupp, reduce4(mon, L))
+                end
+            # end
+        end
+    end
     sort!(tsupp)
     unique!(tsupp)
     ltsupp = length(tsupp)
@@ -75,11 +86,14 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                         @inbounds add_to_expression!(reig[l+1][r1, r2], (-1)^l, mvar[Locb[end]])
                     end
                     for r=1:Int(L/2)-1
-                        if coef[r]^2==1&&abs(cos(2*pi*r*l/L))>=1e-8
+                        if coef[r]^2==1
+                            # &&abs(cos(2*pi*r*l/L))>=1e-8
                             @inbounds add_to_expression!(reig[l+1][r1, r2], 2*coef[r]*cos(2*pi*r*l/L), mvar[Locb[r]])
-                        elseif coef[r]==im&&abs(sin(2*pi*r*l/L))>=1e-8
+                        elseif coef[r]==im
+                            # &&abs(sin(2*pi*r*l/L))>=1e-8
                             @inbounds add_to_expression!(reig[l+1][r1, r2], -2*sin(2*pi*r*l/L), mvar[Locb[r]])
-                        elseif coef[r]==-im&&abs(sin(2*pi*r*l/L))>=1e-8
+                        elseif coef[r]==-im
+                            # &&abs(sin(2*pi*r*l/L))>=1e-8
                             @inbounds add_to_expression!(reig[l+1][r1, r2], 2*sin(2*pi*r*l/L), mvar[Locb[r]])
                         end
                     end
@@ -107,26 +121,26 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
                     end
                     for r=0:L-1
                         if coef[r+1]^2==1
-                            if abs(cos(2*pi*r*l/L))>=1e-8
+                            # if abs(cos(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(reig[l+1][r1, r2], coef[r+1]*cos(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
-                            if abs(sin(2*pi*r*l/L))>=1e-8
+                            # end
+                            # if abs(sin(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(ieig[l+1][r1, r2], coef[r+1]*sin(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
+                            # end
                         elseif coef[r+1]==im
-                            if abs(sin(2*pi*r*l/L))>=1e-8
+                            # if abs(sin(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(reig[l+1][r1, r2], -sin(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
-                            if abs(cos(2*pi*r*l/L))>=1e-8
+                            # end
+                            # if abs(cos(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(ieig[l+1][r1, r2], cos(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
+                            # end
                         elseif coef[r+1]==-im
-                            if abs(sin(2*pi*r*l/L))>=1e-8
+                            # if abs(sin(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(reig[l+1][r1, r2], sin(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
-                            if abs(cos(2*pi*r*l/L))>=1e-8
+                            # end
+                            # if abs(cos(2*pi*r*l/L))>=1e-8
                                 @inbounds add_to_expression!(ieig[l+1][r1, r2], -cos(2*pi*r*l/L), mvar[Locb[r+1]])
-                            end
+                            # end
                         end
                     end
                 end
@@ -229,7 +243,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     else
         cor0,cor1,cor2 = nothing,nothing,nothing
     end
-    return objv,tsupp,value.(mvar)
+    return objv,cor0,cor1,cor2
 end
 
 function bfind(A, l, a)
