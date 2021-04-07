@@ -191,6 +191,10 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     if posepsd == true
         posepsd4!(model, mvar, tsupp, L, sites=[1;3;4;5])
         posepsd4!(model, mvar, tsupp, L, sites=[1;2;4;5])
+        posepsd4!(model, mvar, tsupp, L, sites=[1;4;5;6])
+        posepsd4!(model, mvar, tsupp, L, sites=[1;3;4;6])
+        posepsd4!(model, mvar, tsupp, L, sites=[1;3;5;6])
+        posepsd4!(model, mvar, tsupp, L, sites=[1;2;5;6])
         # posepsd6!(model, mvar, tsupp, L)
         # posepsd6!(model, mvar, tsupp, L, sites=[1;3;4;5;6;7])
         # posepsd6!(model, mvar, tsupp, L, sites=[1;2;4;5;6;7])
