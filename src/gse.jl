@@ -12,17 +12,23 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             end
         end
     end
-    # if posepsd == true
-    #     for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3
-    #         sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
-    #         for r = 1:3
-    #             mon = mono([i,j,k,l,s,t], sites=sites[r])
-    #             if !iszero(mon)
-    #                 push!(tsupp, reduce4(mon, L))
-    #             end
-    #         end
-    #     end
-    # end
+    if posepsd == true
+        for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3
+            sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
+            for r = 1:3
+                mon = mono([i,j,k,l,s,t], sites=sites[r])
+                if !iszero(mon)
+                    push!(tsupp, reduce4(mon, L))
+                end
+            end
+        end
+        for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3, u = 0:3, v = 0:3
+            mon = mono([i,j,k,l,s,t,u,v])
+            if !iszero(mon)
+                push!(tsupp, reduce4(mon, L))
+            end
+        end
+    end
     sort!(tsupp)
     unique!(tsupp)
     ltsupp = length(tsupp)
@@ -189,17 +195,11 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     end
     @constraint(model, mvar[1]==1)
     if posepsd == true
-        posepsd4!(model, mvar, tsupp, L, sites=[1;3;4;5])
-        posepsd4!(model, mvar, tsupp, L, sites=[1;2;4;5])
-        posepsd4!(model, mvar, tsupp, L, sites=[1;4;5;6])
-        posepsd4!(model, mvar, tsupp, L, sites=[1;3;4;6])
-        posepsd4!(model, mvar, tsupp, L, sites=[1;3;5;6])
-        posepsd4!(model, mvar, tsupp, L, sites=[1;2;5;6])
-        # posepsd6!(model, mvar, tsupp, L)
-        # posepsd6!(model, mvar, tsupp, L, sites=[1;3;4;5;6;7])
-        # posepsd6!(model, mvar, tsupp, L, sites=[1;2;4;5;6;7])
-        # posepsd6!(model, mvar, tsupp, L, sites=[1;2;3;5;6;7])
-        # posepsd8!(model, mvar, tsupp, L)
+        posepsd6!(model, mvar, tsupp, L)
+        posepsd6!(model, mvar, tsupp, L, sites=[1;3;4;5;6;7])
+        posepsd6!(model, mvar, tsupp, L, sites=[1;2;4;5;6;7])
+        posepsd6!(model, mvar, tsupp, L, sites=[1;2;3;5;6;7])
+        posepsd8!(model, mvar, tsupp, L)
     end
     if energy != []
         gsen = AffExpr(0)

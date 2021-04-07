@@ -1,18 +1,3 @@
-function posepsd4!(model, mvar, tsupp, L; sites=[1;2;3;4])
-    ltsupp = length(tsupp)
-    Pauli = [[1 0; 0 1], [0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
-    pos = zeros(GenericAffExpr{Float64,VariableRef}, 2^4, 2^4)
-    for i = 0:3, j = 0:3, k = 0:3, l = 0:3
-        mon = mono([i,j,k,l], sites=sites)
-        if !iszero(mon)
-            Locb = bfind(tsupp, ltsupp, reduce4(mon, L))
-            tp = tensor([Pauli[i+1], Pauli[j+1], Pauli[k+1], Pauli[l+1]])
-            pos += mvar[Locb]*tp
-        end
-    end
-    @constraint(model, pos in PSDCone())
-end
-
 function posepsd6!(model, mvar, tsupp, L; sites=[1;2;3;4;5;6])
     ltsupp = length(tsupp)
     Pauli = [[1 0; 0 1], [0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
