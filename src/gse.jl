@@ -34,7 +34,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 10000)
+        set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 10000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
@@ -257,7 +257,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     else
         cor0,cor1,cor2 = nothing,nothing,nothing
     end
-    return objv,tsupp,value.(mvar)
+    return objv,cor0,cor1,cor2
 end
 
 function bfind(A, l, a)
