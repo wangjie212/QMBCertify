@@ -1,11 +1,15 @@
-function posepsd6!(model, mvar, tsupp, L; sites=[1;2;3;4;5;6])
+function posepsd6!(model, mvar, tsupp, L; lattice="chain", sites=[1;2;3;4;5;6])
     ltsupp = length(tsupp)
     Pauli = [[1 0; 0 1], [0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
     pos = zeros(GenericAffExpr{Float64,VariableRef}, 2^6, 2^6)
     for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3
         mon = mono([i,j,k,l,s,t], sites=sites)
         if !iszero(mon)
-            Locb = bfind(tsupp, ltsupp, reduce4(mon, L))
+            if lattice=="chain"
+                Locb = bfind(tsupp, ltsupp, reduce4(mon, L))
+            else
+                Locb = bfind(tsupp, ltsupp, reduce5(reduce4(mon, L, lattice="square"), L))
+            end
             tp = tensor([Pauli[i+1], Pauli[j+1], Pauli[k+1], Pauli[l+1], Pauli[s+1], Pauli[t+1]])
             pos += mvar[Locb]*tp
         end
