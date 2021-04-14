@@ -34,7 +34,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 10000)
+        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 10000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
@@ -362,11 +362,14 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
             loc = [location(ceil(Int, a[i]/3)) for i=1:l]
             for i = 1:l
                 temp = zeros(UInt16, l)
-                for j = 1:l
-                    p = slabel(loc[j][1]-loc[i][1]+1, loc[j][2]-loc[i][2]+1, L=L)
-                    temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                factor = [[1;1], [-1;1], [1;-1], [-1;-1]]
+                for k = 1:4
+                    for j = 1:l
+                        p = slabel(factor[k][1]*(loc[j][1]-loc[i][1])+1, factor[k][2]*(loc[j][2]-loc[i][2])+1, L=L)
+                        temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                    end
+                    append!(pa, perm(sort(temp)))
                 end
-                append!(pa, perm(sort(temp)))
             end
         end
         return findmin(pa)[1]
