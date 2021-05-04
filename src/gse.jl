@@ -194,16 +194,12 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         @inbounds add_to_expression!(obj, coe[i], mvar[Locb])
     end
     @constraint(model, mvar[1]==1)
-    if posepsd == true
-        if lattice == "chain"
-            posepsd6!(model, mvar, tsupp, L)
-            posepsd6!(model, mvar, tsupp, L, sites=[1;3;4;5;6;7])
-            posepsd6!(model, mvar, tsupp, L, sites=[1;2;4;5;6;7])
-            posepsd6!(model, mvar, tsupp, L, sites=[1;2;3;5;6;7])
-            # posepsd8!(model, mvar, tsupp, L)
-        else
-            posepsd6!(model, mvar, tsupp, L, lattice="square")
-        end
+    if posepsd == true && lattice == "chain"
+        posepsd6!(model, mvar, tsupp, L)
+        posepsd6!(model, mvar, tsupp, L, sites=[1;3;4;5;6;7])
+        posepsd6!(model, mvar, tsupp, L, sites=[1;2;4;5;6;7])
+        posepsd6!(model, mvar, tsupp, L, sites=[1;2;3;5;6;7])
+        # posepsd8!(model, mvar, tsupp, L)
     end
     if energy != []
         gsen = AffExpr(0)
@@ -362,8 +358,9 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
             loc = [location(ceil(Int, a[i]/3)) for i=1:l]
             for i = 1:l
                 temp = zeros(UInt16, l)
-                factor = [[1;1], [-1;1], [1;-1], [-1;-1]]
-                for k = 1:4
+                factor = [[1;1]]
+                # factor = [[1;1], [-1;1], [1;-1], [-1;-1]]
+                for k = 1:length(factor)
                     for j = 1:l
                         p = slabel(factor[k][1]*(loc[j][1]-loc[i][1])+1, factor[k][2]*(loc[j][2]-loc[i][2])+1, L=L)
                         temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
