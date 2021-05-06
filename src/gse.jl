@@ -358,15 +358,11 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
             loc = [location(ceil(Int, a[i]/3)) for i=1:l]
             for i = 1:l
                 temp = zeros(UInt16, l)
-                factor = [[1;1]]
-                # factor = [[1;1], [-1;1], [1;-1], [-1;-1]]
-                for k = 1:length(factor)
-                    for j = 1:l
-                        p = slabel(factor[k][1]*(loc[j][1]-loc[i][1])+1, factor[k][2]*(loc[j][2]-loc[i][2])+1, L=L)
-                        temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
-                    end
-                    append!(pa, perm(sort(temp)))
+                for j = 1:l
+                    p = slabel(loc[j][1]-loc[i][1]+1, loc[j][2]-loc[i][2]+1, L=L)
+                    temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
                 end
+                append!(pa, perm(sort(temp)))
             end
         end
         return findmin(pa)[1]
