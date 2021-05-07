@@ -1,5 +1,5 @@
 function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain",
-    solver="Mosek", posepsd=false, extra=0, three_type=[1;1], totalspin=false, sector=0, correlation=false)
+    solver="Mosek", posepsd=false, extra=0, three_type=[1;1], J2=0, totalspin=false, sector=0, correlation=false)
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp = Vector{UInt16}[]
     for i = 0:3
@@ -202,6 +202,12 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         gsen = AffExpr(0)
         Locb = bfind(tsupp, ltsupp, [1;4])
         gsen += 3/2*mvar[Locb]
+        if J2 != 0
+            Locb = bfind(tsupp, ltsupp, [1;7])
+            gsen += 3/4*J2*mvar[Locb]
+            Locb = bfind(tsupp, ltsupp, [1;3*(slabel(L, 2, L=L)-1)+1])
+            gsen += 3/4*J2*mvar[Locb]
+        end
         @constraint(model, gsen>=energy[1])
         @constraint(model, gsen<=energy[2])
     end
