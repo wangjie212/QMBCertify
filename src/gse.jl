@@ -201,12 +201,18 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     if energy != []
         gsen = AffExpr(0)
         Locb = bfind(tsupp, ltsupp, [1;4])
-        gsen += 3/2*mvar[Locb]
+        if lattice == "chain"
+            gsen += 3/4*mvar[Locb]
+        else
+            gsen += 3/2*mvar[Locb]
+        end
         if J2 != 0
             Locb = bfind(tsupp, ltsupp, [1;7])
             gsen += 3/4*J2*mvar[Locb]
-            Locb = bfind(tsupp, ltsupp, [1;3*(slabel(L, 2, L=L)-1)+1])
-            gsen += 3/4*J2*mvar[Locb]
+            if lattice == "square"
+                Locb = bfind(tsupp, ltsupp, [1;3*(slabel(L, 2, L=L)-1)+1])
+                gsen += 3/4*J2*mvar[Locb]
+            end
         end
         @constraint(model, gsen>=energy[1])
         @constraint(model, gsen<=energy[2])
@@ -361,11 +367,14 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
             loc = [location(ceil(Int, a[i]/3)) for i=1:l]
             for i = 1:l
                 temp = zeros(UInt16, l)
-                for j = 1:l
-                    p = slabel(loc[j][1]-loc[i][1]+1, loc[j][2]-loc[i][2]+1, L=L)
-                    temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                factor = [[1;1], [-1;1], [1;-1], [-1;-1]]
+                for k = 1:4
+                    for j = 1:l
+                        p = slabel(factor[k][1]*(loc[j][1]-loc[i][1])+1, factor[k][2]*(loc[j][2]-loc[i][2])+1, L=L)
+                        temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                    end
+                    append!(pa, perm(sort(temp)))
                 end
-                append!(pa, perm(sort(temp)))
             end
         end
         return findmin(pa)[1]
