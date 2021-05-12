@@ -213,7 +213,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             Locb = bfind(tsupp, ltsupp, [1;7])
             gsen += 3/4*J2*mvar[Locb]
             if lattice == "square"
-                Locb = bfind(tsupp, ltsupp, [1;3*(slabel(L, 2, L=L)-1)+1])
+                Locb = bfind(tsupp, ltsupp, reduce!(UInt16[1;3*(slabel(L, 2, L=L)-1)+1], L=L, lattice="square")[1])
                 gsen += 3/4*J2*mvar[Locb]
             end
         end
