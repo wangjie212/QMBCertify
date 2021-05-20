@@ -34,7 +34,7 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     ltsupp = length(tsupp)
     if solver == "COSMO"
         model = Model(optimizer_with_attributes(COSMO.Optimizer))
-        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 10000)
+        set_optimizer_attributes(model, "eps_abs" => 1e-3, "eps_rel" => 1e-3, "max_iter" => 50000)
     else
         model = Model(optimizer_with_attributes(Mosek.Optimizer))
     end
