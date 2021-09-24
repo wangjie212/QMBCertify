@@ -5,6 +5,7 @@ using Mosek
 using MosekTools
 using LinearAlgebra
 using COSMO
+using Dualization
 
 export GSE1, GSE2, slabel
 

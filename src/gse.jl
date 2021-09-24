@@ -1,5 +1,5 @@
 function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain",
-    solver="Mosek", posepsd=false, extra=0, three_type=[1;1], J2=0, totalspin=false, sector=0, correlation=false)
+    solver="Mosek", posepsd=false, extra=0, three_type=[1;1], J2=0, totalspin=false, sector=0, correlation=false, dual=true)
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp = Vector{UInt16}[]
     for i = 0:3
@@ -17,14 +17,14 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
             sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
             for r = 1:3
                 mon = mono([i,j,k,l,s,t], sites=sites[r])
-                if !iszero(mon)
+                if !isz(mon)
                     push!(tsupp, reduce4(mon, L))
                 end
             end
         end
         # for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3, u = 0:3, v = 0:3
         #     mon = mono([i,j,k,l,s,t,u,v])
-        #     if !iszero(mon)
+        #     if !isz(mon)
         #         push!(tsupp, reduce4(mon, L))
         #     end
         # end
@@ -33,10 +33,18 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
     unique!(tsupp)
     ltsupp = length(tsupp)
     if solver == "COSMO"
-        model = Model(optimizer_with_attributes(COSMO.Optimizer))
+        if dual == false
+            model = Model(optimizer_with_attributes(COSMO.Optimizer))
+        else
+            model = Model(dual_optimizer(COSMO.Optimizer))
+        end
         set_optimizer_attributes(model, "eps_abs" => 1e-4, "eps_rel" => 1e-4, "max_iter" => 100000)
     else
-        model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        if dual == false
+            model = Model(optimizer_with_attributes(Mosek.Optimizer))
+        else
+            model = Model(dual_optimizer(Mosek.Optimizer))
+        end
     end
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     mvar = @variable(model, [1:ltsupp])
@@ -208,10 +216,10 @@ function GSE1(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int
         end
         if J2 != 0
             Locb = bfind(tsupp, ltsupp, [1;7])
-            gsen += 3/4*J2*mvar[Locb]
-            if lattice == "square"
-                Locb = bfind(tsupp, ltsupp, reduce!(UInt16[1;3*(slabel(L, 2, L=L)-1)+1], L=L, lattice="square")[1])
+            if lattice == "chain"
                 gsen += 3/4*J2*mvar[Locb]
+            else
+                gsen += 3/2*J2*mvar[Locb]
             end
         end
         @constraint(model, gsen>=energy[1])
@@ -347,7 +355,7 @@ function reduce3!(a::Vector{UInt16})
     return a
 end
 
-function iszero(a::Vector{UInt16})
+function isz(a::Vector{UInt16})
     return any(i->isodd(count(isequal(i), mod.(a,3))), 0:2)
 end
 
@@ -404,7 +412,7 @@ function reduce!(a::Vector{UInt16}; L=0, lattice="chain", symmetry=true)
     reduce3!(a)
     a,coef = reduce2!(a)
     reduce3!(a)
-    if iszero(a)
+    if isz(a)
         coef = 0
     elseif symmetry == true
         a = reduce4(a, L, lattice=lattice)
