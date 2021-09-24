@@ -105,6 +105,12 @@ version = "1.0.1"
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
+[[Dualization]]
+deps = ["JuMP", "MathOptInterface"]
+git-tree-sha1 = "c5ce8fc65bafff0a8694db2e6999a5cfb2129c0a"
+uuid = "191a621a-6537-11e9-281d-650236a99e60"
+version = "0.3.4"
+
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "NaNMath", "Random", "SpecialFunctions", "StaticArrays"]
 git-tree-sha1 = "1d090099fb82223abc48f7ce176d3f7696ede36d"
