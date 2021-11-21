@@ -490,8 +490,8 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                     end
                 end
             else
-                tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
-                # , [1;0;2;0], [0;1;0;2], [1;0;-2;3], [1;0;3;3], [0;1;3;-2], [0;1;3;3]]
+                # tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
+                tb = [[1;0;2;0], [0;1;0;2], [1;0;-2;3], [1;0;3;3], [0;1;3;-2], [0;1;3;3]]
                 for s=1:length(tb), i=1:L, j=1:L
                     push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+label;3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+label;3*(slabel(j+tb[s][3], i+j-1+tb[s][4], L=L)-1)+label])
                 end
@@ -543,8 +543,8 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                     push!(basis, UInt16[3*(i-1)+a[k][1];smod(3*(i-1+three_type[1])+a[k][2], 3*L);smod(3*(i-1+sum(three_type))+a[k][3], 3*L)])
                 end
             else
-                tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
-                # , [1;0;2;0], [0;1;0;2], [1;0;-2;3], [1;0;3;3], [0;1;3;-2], [0;1;3;3]]
+                # tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1]]
+                tb = [[1;0;2;0], [0;1;0;2], [1;0;-2;3], [1;0;3;3], [0;1;3;-2], [0;1;3;3]]
                 for s=1:length(tb), k=1:6, i=1:L, j=1:L
                     push!(basis, [3*(slabel(j, i+j-1, L=L)-1)+a[k][1];3*(slabel(j+tb[s][1], i+j-1+tb[s][2], L=L)-1)+a[k][2];3*(slabel(j+tb[s][3], i+j-1+tb[s][4], L=L)-1)+a[k][3]])
                 end
