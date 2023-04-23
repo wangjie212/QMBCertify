@@ -93,9 +93,9 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 for r = 1:Int(L/2)-1
                     if coef[r]^2 == 1
                         @inbounds add_to_expression!(cons[Locb[r]], 2*coef[r]*cos(2*pi*r*(l-1)/L), pp)
-                    elseif coef[r] == im 
+                    elseif coef[r] == im
                         @inbounds add_to_expression!(cons[Locb[r]], -2*sin(2*pi*r*(l-1)/L), pp)
-                    elseif coef[r] == -im 
+                    elseif coef[r] == -im
                         @inbounds add_to_expression!(cons[Locb[r]], 2*sin(2*pi*r*(l-1)/L), pp)
                     end
                 end
