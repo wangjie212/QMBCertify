@@ -1,0 +1,9 @@
+name = "ManyBodySOS"
+uuid = "71df4310-1531-11eb-256d-190d0a52716f"
+authors = ["Jie Wang <wangjie212@amss.ac.cn>"]
+version = "0.1.0"
+
+[deps]
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MosekTools = "1ec41992-ff65-5c91-ac43-2df89e9693a4"
