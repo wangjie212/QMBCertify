@@ -8,7 +8,7 @@ coe = [3/4]
 L = 10
 d = 4
 @time begin
-opt,cor0,cor1,cor2 = GSE(supp, coe, L, d, QUIET=true, posepsd=false, extra=1, correlation=false)
+opt,cor0,cor1,cor2 = GSE(supp, coe, L, d, QUIET=true, posepsd=true, extra=2, correlation=true)
 end
 
 L = 4

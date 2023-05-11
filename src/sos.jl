@@ -13,15 +13,13 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         end
     end
     if posepsd == true && lattice == "chain"
-        # for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3
-        #     sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
-        #     for r = 1:3
-        #         mon = mono([i,j,k,l,s,t], sites=sites[r])
-        #         if !isz(mon)
-        #             push!(tsupp, reduce4(mon, L))
-        #         end
-        #     end
-        # end
+        sites = [[1;3;4;5;6;7], [1;2;4;5;6;7], [1;2;3;5;6;7]]
+        for r = 1:3, i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3
+            mon = mono([i,j,k,l,s,t], sites=sites[r])
+            if !isz(mon)
+                push!(tsupp, reduce4(mon, L))
+            end
+        end
         for i = 0:3, j = 0:3, k = 0:3, l = 0:3, s = 0:3, t = 0:3, u = 0:3, v = 0:3
             mon = mono([i,j,k,l,s,t,u,v])
             if !isz(mon)
@@ -156,7 +154,7 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         # posepsd6!(model, cons, tsupp, L, sites=[1;2;4;5;6;7])
         # posepsd6!(model, cons, tsupp, L, sites=[1;2;3;5;6;7])
         posepsd8!(model, cons, tsupp, L)
-        if mb > 256
+        if mb < 256
             mb = 256
         end
     end

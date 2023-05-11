@@ -1,14 +1,14 @@
 function bfind(A, l, a)
-    low=1
-    high=l
-    while low<=high
-        mid=Int(ceil(1/2*(low+high)))
-        if A[mid]==a
+    low = 1
+    high = l
+    while low <= high
+        mid = Int(ceil(1/2*(low+high)))
+        if A[mid] == a
            return mid
-        elseif A[mid]<a
-            low=mid+1
+        elseif A[mid] < a
+            low = mid + 1
         else
-            high=mid-1
+            high = mid - 1
         end
     end
     return 0
