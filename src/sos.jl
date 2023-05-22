@@ -1,5 +1,5 @@
 function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain",
-    posepsd=false, extra=0, three_type=[1;1], J2=0, correlation=false)
+    posepsd=false, extra=0, three_type=[1;1], totalspin=false, sector=0, J2=0, correlation=false)
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp = Vector{UInt16}[]
     for i = 0:3
@@ -158,30 +158,54 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
             mb = 256
         end
     end
-    println("SDP size: n = $mb, m = $ltsupp")
-    @variable(model, lower)
-    cons[1] += lower
-    @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
-    @objective(model, Max, lower)
+    obj = @variable(model, lower)
+    if totalspin == true
+        free = @variable(model)
+        obj += 4*sector*(sector+1)*free
+        for i = 1:L, j = 1:L
+            temp = UInt16[3*(i-1)+1; 3*(j-1)+1]
+            bi = reduce!(temp, L=L, lattice=lattice)[1]
+            Locb = bfind(tsupp, ltsupp, bi)
+            @inbounds add_to_expression!(cons[Locb], 3, free)
+        end
+        # free = @variable(model)
+        # obj += 16*sector^2*(sector+1)^2*free
+        # for j1 = 1:L, j2 = 1:L, k1 = 1:L, k2 = 1:L
+        #     temp = UInt16[3*(j1-1)+1; 3*(k1-1)+1; 3*(j2-1)+1; 3*(k2-1)+1]
+        #     bi = reduce!(temp, L=L, lattice=lattice)[1]
+        #     Locb = bfind(tsupp, ltsupp, bi)
+        #     @inbounds add_to_expression!(cons[Locb], 3, free)
+        #     temp = UInt16[3*(j1-1)+1; 3*(k1-1)+1; 3*(j2-1)+2; 3*(k2-1)+2]
+        #     bi,coef = reduce!(temp, L=L, lattice=lattice)
+        #     Locb = bfind(tsupp, ltsupp, bi)
+        #     if coef^2 == 1
+        #         @inbounds add_to_expression!(cons[Locb], 6*coef, free)
+        #     end
+        # end
+    end
     if energy != []
-        gsen = AffExpr(0)
+        pos = @variable(model, [1:2], lower_bound=0)
         Locb = bfind(tsupp, ltsupp, [1;4])
         if lattice == "chain"
-            gsen += 3/4*mvar[Locb]
+            @inbounds add_to_expression!(cons[Locb], 3/4, pos[1]-pos[2])
         else
-            gsen += 3/2*mvar[Locb]
+            @inbounds add_to_expression!(cons[Locb], 3/2, pos[1]-pos[2])
         end
         if J2 != 0
             Locb = bfind(tsupp, ltsupp, [1;7])
             if lattice == "chain"
-                gsen += 3/4*J2*mvar[Locb]
+                @inbounds add_to_expression!(cons[Locb], 3/4*J2, pos[1]-pos[2])
             else
-                gsen += 3/2*J2*mvar[Locb]
+                @inbounds add_to_expression!(cons[Locb], 3/2*J2, pos[1]-pos[2])
             end
         end
-        @constraint(model, gsen>=energy[1])
-        @constraint(model, gsen<=energy[2])
+        obj += energy[1]*pos[1]
+        obj -= energy[2]*pos[2]
     end
+    @objective(model, Max, obj)
+    cons[1] += lower
+    @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
+    println("SDP size: n = $mb, m = $ltsupp")
     optimize!(model)
     status = termination_status(model)
     objv = objective_value(model)

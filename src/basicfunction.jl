@@ -11,7 +11,7 @@ function bfind(A, l, a)
             high = mid - 1
         end
     end
-    return 0
+    return nothing
 end
 
 function reduce1!(a::Vector{UInt16})

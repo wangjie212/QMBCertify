@@ -11,20 +11,44 @@ d = 4
 opt,cor0,cor1,cor2 = GSE(supp, coe, L, d, QUIET=true, posepsd=true, extra=2, correlation=true)
 end
 
+L = 10
+J2 = 0.3
+d,r = 4,5
+tt = [1;1]
+supp = Vector{UInt16}[[1;4], [1;7]]
+coe = [3/4;3/4*J2]
+time = @time begin
+opt,cor0,cor1,cor2 = GSE(supp, coe, L, d, QUIET=true, posepsd=true, extra=r-1, three_type=tt, correlation=false)
+end
+
+supp = Vector{UInt16}[[1;4], [1;7]]
+J2 = 0.3
+coe = [3/4; 3/4*J2]
+r = 5
+@time GSE(supp, coe, 10, 4, QUIET=true, extra=r-1, posepsd=true, totalspin=true, sector=1, correlation=false)
+
+L = 40
+E = -0.44366306
+coe = [1/4]
+supp = Vector{UInt16}[[1;3*Int(L/2)+1]]
+energy = [E-0.0001, E+0.0001]
+r = 2
+@time GSE(supp, coe, L, 4, energy=energy, posepsd=false, extra=r-1, QUIET=true, correlation=false)
+
 L = 4
 E = -0.701777
 lE = -0.704741
 coe = [1/4]
 supp = Vector{UInt16}[[1;3*(slabel(Int(L/2)+1, Int(L/2)+1, L=L)-1)+1]]
 # 2D XXZ model
-# supp=[UInt16[1;4]]
-# coe=[3/2]
-# supp=[UInt16[1;4], UInt16[2;5], UInt16[1;10], UInt16[2;11]]
-# coe=ones(4)
-energy=[E-0.0001, E+0.0001]
+# supp = [UInt16[1;4]]
+# coe = [3/2]
+# supp = [UInt16[1;4], UInt16[2;5], UInt16[1;10], UInt16[2;11]]
+# coe = ones(4)
+energy = [E-0.0001, E+0.0001]
 
 @time begin
-opt,cor,_,_ = GSE(supp, coe, L, 3, energy=[lE, E], lattice="square", solver="COSMO", QUIET=false, correlation=false)
+opt,cor,_,_ = GSE(supp, coe, L, 3, energy=[lE, E], lattice="square", QUIET=false, correlation=false)
 end
 
 # XXZ model
