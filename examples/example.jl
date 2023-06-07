@@ -22,11 +22,12 @@ opt,cor0,cor1,cor2 = GSE(supp, coe, L, d, QUIET=true, posepsd=true, extra=r-1, t
 end
 
 supp = Vector{UInt16}[[1;4], [1;7]]
-J2 = 0.3
+J2 = 0.1
 coe = [3/4; 3/4*J2]
-L = 10
-r = 5
-@time GSE(supp, coe, L, 4, QUIET=true, extra=r-1, posepsd=true, totalspin=true, sector=1, correlation=false)
+L = 40
+r = 19
+tt = [1;1]
+@time GSE(supp, coe, L, 2, QUIET=true, extra=r-1, posepsd=false, three_type=tt, correlation=false)
 
 L = 40
 E = -0.44366306
