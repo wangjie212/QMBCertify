@@ -192,13 +192,16 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                         push!(basis, [3*(i-1)+a[k][1];smod(3*(i+s)+a[k][2], 3*L)])
                     end
                 else
-                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [1;-2], [2;-1], [2;2]]
+                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2], [2;-1]]
                     if L > 4
-                        push!(tb, [2;-2])
+                        push!(tb, [1;-2], [2;-2])
                     end
                     if extra == true
-                        if L == 6
+                        if L >= 6
                             push!(tb, [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0], [3;-1], [3;-2])
+                        end
+                        if L >= 8
+                            push!(tb, [3;-3], [2;-3], [1;-3])
                         end
                     end
                     for s=1:length(tb), i=1:L, j=1:L
@@ -257,13 +260,16 @@ function split_basis(L, d, label; lattice="chain", extra=0, three_type=[1;1])
                         push!(basis, UInt16[3*(i-1)+k;smod(3*(i+s)+k, 3*L)])
                     end
                 else
-                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [1;-2], [2;-1], [2;2]]
+                    tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2], [2;-1]]
                     if L > 4
-                        push!(tb, [2;-2])
+                        push!(tb, [1;-2], [2;-2])
                     end
                     if extra == true
-                        if L == 6
+                        if L >= 6
                             push!(tb, [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0], [3;-1], [3;-2])
+                        end
+                        if L >= 8
+                            push!(tb, [3;-3], [2;-3], [1;-3])
                         end
                     end
                     for s=1:length(tb), i=1:L, j=1:L
