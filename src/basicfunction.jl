@@ -105,6 +105,11 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
                         temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
                     end
                     append!(pa, perm(sort(temp)))
+                    for j = 1:l
+                        p = slabel(factor[k][1]*(loc[j][2]-loc[i][2])+1, factor[k][2]*(loc[j][1]-loc[i][1])+1, L=L)
+                        temp[j] = 3*p+a[j]-3*ceil(Int, a[j]/3)
+                    end
+                    append!(pa, perm(sort(temp)))
                 end
             end
         end
@@ -114,34 +119,21 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
     end
 end
 
-function reduce5(a::Vector{UInt16}, L)
-    l = length(a)
-    ra = zeros(UInt16, l)
-    for j = 1:l
-        loc = location(ceil(Int, a[j]/3))
-        ra[j] = 3*slabel(loc[2], loc[1], L=L)+a[j]-3*ceil(Int, a[j]/3)
-    end
-    return min(a, ra)
-end
-
 function perm(a)
     ra = smod.(a, 3)
     sym = [[1;2;3], [1;3;2], [2;1;3], [2;3;1], [3;1;2], [3;2;1]]
     return [UInt16.(3*(ceil.(Int, a./3).-1) .+ sym[i][ra]) for i=1:6]
 end
 
-function reduce!(a::Vector{UInt16}; L=0, lattice="chain", symmetry=true)
+function reduce!(a::Vector{UInt16}; L=0, lattice="chain")
     reduce1!(a)
     reduce3!(a)
     a,coef = reduce2!(a)
     reduce3!(a)
     if isz(a)
         coef = 0
-    elseif symmetry == true
+    else
         a = reduce4(a, L, lattice=lattice)
-    end
-    if lattice == "square"
-        a = reduce5(a, L)
     end
     return a,coef
 end

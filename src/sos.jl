@@ -1,4 +1,4 @@
-function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain",
+function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; energy=[], QUIET=false, lattice="chain",
     posepsd=false, extra=0, three_type=[1;1], totalspin=false, sector=0, J2=0, correlation=false)
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
     tsupp = Vector{UInt16}[]
@@ -37,9 +37,7 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         for j = 1:L
             if i == 0 && j == 1
                 pos[j] = @variable(model, [1:2*(k+1), 1:2*(k+1)], PSD)
-                if 2*(k+1) > mb
-                    mb = 2*(k+1)
-                end
+                mb = max(2*(k+1), mb)
                 @inbounds add_to_expression!(cons[1], pos[1][1,1]+pos[1][k+2,k+2])
                 for l = 1:k
                     bi,coef = reduce!(basis[1][L*(l-1)+2], L=L, lattice=lattice)
@@ -50,9 +48,7 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 end
             else
                 pos[j] = @variable(model, [1:2*k, 1:2*k], PSD)
-                if 2*k > mb
-                    mb = 2*k
-                end
+                mb = max(2*k, mb)
             end
         end
         for j = 1:k
@@ -75,7 +71,7 @@ function GSE(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 if i == 0 && l == 1
                     pp = pos[l][j+1, j+1] + pos[l][j+k+2, j+k+2]
                 else
-                    pp = pos[l][j, j]+pos[l][j+k, j+k]
+                    pp = pos[l][j, j] + pos[l][j+k, j+k]
                 end
                 @inbounds add_to_expression!(cons[1], pp)
                 if coef[end] != 0

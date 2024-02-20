@@ -1,10 +1,10 @@
-module ManyBodySOS
+module QMBCertify
 
 using JuMP
 using MosekTools
 using LinearAlgebra
 
-export GSE, slabel
+export GSB, slabel
 
 include("basicfunction.jl")
 include("sos.jl")
