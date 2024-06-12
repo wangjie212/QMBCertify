@@ -1,4 +1,4 @@
-function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; soc=d-1, energy=[], QUIET=false, lattice="chain",
+function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, energy=[], QUIET=false, lattice="chain",
     positivity=false, extra=0, three_type=[1;1], totalspin=false, sector=0, J2=0, correlation=false, mosek_setting=mosek_para())
     println("*********************************** QMBCertify ***********************************")
     println("Version 0.2.0, developed by Jie Wang, 2020--2024")
@@ -26,7 +26,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         ceig2 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
     end
     for i = 1:4
-        basis[i] = split_basis(L, d, i-1, lattice=lattice, extra=extra, three_type=three_type)
+        basis[i] = split_basis(L, i-1, lattice=lattice, extra=extra, three_type=three_type)
         if lattice == "chain"
             k = Int(length(basis[i])/L)
             coe1[i] = Vector{Vector{Int8}}(undef, k)

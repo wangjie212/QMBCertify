@@ -1,7 +1,7 @@
 name = "QMBCertify"
 uuid = "71df4310-1531-11eb-256d-190d0a52716f"
 authors = ["Jie Wang <wangjie212@amss.ac.cn>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 Hypatia = "b99e6be6-89ff-11e8-14f8-45c827f4f8f2"
