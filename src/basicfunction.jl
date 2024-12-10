@@ -6,8 +6,20 @@ end
 
 mosek_para() = mosek_para(1e-8, 1e-8, 1e-8)
 
-function split_basis(L, label; lattice="chain", extra=0, three_type=[1;1])
+function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
     basis = Vector{UInt16}[]
+    if lattice == "square"
+        tb2 = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2], [2;-1]]
+        lb2 = 10
+        if L >= 6
+            lb2 = 12
+            push!(tb2, [1;-2], [2;-2], [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0], [3;-1], [3;-2])
+        end
+        if L >= 8
+            push!(tb2, [3;-3], [2;-3], [1;-3], [0;4], [1;4], [2;4], [3;4], [4;4], [4;3], [4;2], [4;1], [4;0], [4;-1], [4;-2], [4;-3])
+        end
+        tb3 = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1], [1;0;2;0], [0;1;0;2]]
+    end
     if label > 0
         a1 = [[rot(label)[1];rot(label)[2]], [rot(label)[2];rot(label)[1]]]
         a2 = [[label;label;rot(label)[1];rot(label)[2]], [rot(label)[2];rot(label)[1];label;label], [label;rot(label)[1];label;rot(label)[2]], [rot(label)[2];label;rot(label)[1];label], [label;rot(label)[1];rot(label)[2];label], [label;rot(label)[2];rot(label)[1];label], 
@@ -31,43 +43,34 @@ function split_basis(L, label; lattice="chain", extra=0, three_type=[1;1])
                     push!(basis, sort([3*(i-1)+ind[1];smod(3*(i-1+three_type[1])+ind[2], 3*L);smod(3*(i-1+sum(three_type))+ind[3], 3*L)]))
                 end
             end
-            for k in a2, i = 1:L
-                push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+            if d > 3
+                for k in a2, i = 1:L
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+                end
             end
         else
             for i = 1:L, j = 1:L
                 push!(basis, [3*(slabel(i, j, L=L)-1)+label])
             end
-            for k in a1
-                tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2], [2;-1]]
-                if L > 4
-                    push!(tb, [1;-2], [2;-2])
+            for k in a1, s in tb2[1:lb2+extra], i = 1:L, j = 1:L
+                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
+            end
+            if d > 2
+                for s in tb3, i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+label;3*(slabel(i+s[1], j+s[2], L=L)-1)+label;3*(slabel(i+s[3], j+s[4], L=L)-1)+label]))
                 end
-                if extra == true
-                    if L >= 6
-                        push!(tb, [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0], [3;-1], [3;-2])
+                for k = 1:3, l = 1:2
+                    ind = rot(label)[l]*ones(Int, 3)
+                    ind[k] = label
+                    for s in tb3, i = 1:L, j = 1:L
+                        push!(basis, sort([3*(slabel(i, j, L=L)-1)+ind[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+ind[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+ind[3]]))
                     end
-                    if L >= 8
-                        push!(tb, [3;-3], [2;-3], [1;-3])
-                    end
-                end
-                for s in tb, i = 1:L, j = 1:L
-                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
                 end
             end
-            tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1], [1;0;2;0], [0;1;0;2]]
-            for s in tb, i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+label;3*(slabel(i+s[1], j+s[2], L=L)-1)+label;3*(slabel(i+s[3], j+s[4], L=L)-1)+label]))
-            end
-            for k = 1:3, l = 1:2
-                ind = rot(label)[l]*ones(Int, 3)
-                ind[k] = label
-                for s in tb, i = 1:L, j = 1:L
-                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+ind[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+ind[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+ind[3]]))
+            if d > 3
+                for k in a2, i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+1, j, L=L)-1)+k[2];3*(slabel(i, j+1, L=L)-1)+k[3];3*(slabel(i+1, j+1, L=L)-1)+k[4]]))
                 end
-            end
-            for k in a2, i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+1, j, L=L)-1)+k[2];3*(slabel(i, j+1, L=L)-1)+k[3];3*(slabel(i+1, j+1, L=L)-1)+k[4]]))
             end
         end  
     else
@@ -80,37 +83,31 @@ function split_basis(L, label; lattice="chain", extra=0, three_type=[1;1])
             for k in a1, i = 1:L
                 push!(basis, sort([3*(i-1)+k[1];smod(3*(i-1+three_type[1])+k[2], 3*L);smod(3*(i-1+sum(three_type))+k[3], 3*L)]))
             end
-            for k in a2, i = 1:L
-                push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+            if d > 3
+                for k in a2, i = 1:L
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+                end
             end
         else
-            tb = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2], [2;-1]]
-            if L > 4
-                push!(tb, [1;-2], [2;-2])
-            end
-            if extra == true
-                if L >= 6
-                    push!(tb, [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0], [3;-1], [3;-2])
-                end
-                if L >= 8
-                    push!(tb, [3;-3], [2;-3], [1;-3])
-                end
-            end
-            for s in tb, k = 1:3, i = 1:L, j = 1:L
+            for s in tb2[1:lb2+extra], k = 1:3, i = 1:L, j = 1:L
                 push!(basis, sort([3*(slabel(i, j, L=L)-1)+k;3*(slabel(i+s[1], j+s[2], L=L)-1)+k]))
             end
-            tb = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1], [1;0;2;0], [0;1;0;2]]
-            for s in tb, k in a1, i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+k[3]]))
+            if d > 2
+                for s in tb3, k in a1, i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+k[3]]))
+                end
             end
-            for k in a2, i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+1, j, L=L)-1)+k[2];3*(slabel(i, j+1, L=L)-1)+k[3];3*(slabel(i+1, j+1, L=L)-1)+k[4]]))
+            if d > 3
+                for k in a2, i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+1, j, L=L)-1)+k[2];3*(slabel(i, j+1, L=L)-1)+k[3];3*(slabel(i+1, j+1, L=L)-1)+k[4]]))
+                end
             end
         end
     end
     return basis
 end
 
+# binary search in a sorted sequence
 function bfind(A, l, a)
     low = 1
     high = l
@@ -238,6 +235,7 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
     end
 end
 
+# implement all reductions
 function reduce!(a::Vector{UInt16}; L=0, lattice="chain")
     reduce1!(a)
     reduce3!(a)
@@ -288,6 +286,7 @@ function smod(i, s)
     return r == 0 ? s : r
 end
 
+# compute the eigenvalues of a (symmetry) circulant matrix
 function eigen_circmat(supp, coe, L; symmetry=false)
     seig = [Vector{UInt16}[] for i = 1:L]
     if symmetry == false

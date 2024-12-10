@@ -4,7 +4,11 @@ using QMBCertify
 supp = Vector{UInt16}[[1;4]]
 coe = [3/4]
 N = 10 # number of spins
-@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, QUIET=false, positivity=0, soc=3, extra=4, correlation=false, mosek_setting=mosek_para(1e-10, 1e-10, 1e-10))
+@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=false, positivity=0, soc=3, extra=4, correlation=false, mosek_setting=mosek_para(1e-10, 1e-10, 1e-10))
+
+N = 30 # number of spins
+@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=false, positivity=0, soc=3, extra=9, correlation=false)
+
 
 # 1d J1-J2 Heisenberg model
 N = 10 # number of sites

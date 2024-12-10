@@ -1,5 +1,5 @@
-function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, energy=[], QUIET=false, lattice="chain",
-    positivity=false, extra=0, three_type=[1;1], totalspin=false, sector=0, J2=0, correlation=false, mosek_setting=mosek_para())
+function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lso=true, lol=Int(L/2), pso=3, energy=[], QUIET=false, lattice="chain",
+    positivity=false, extra=0, three_type=[1;1], J2=0, correlation=false, mosek_setting=mosek_para())
     println("*********************************** QMBCertify ***********************************")
     println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("QMBCertify is launching...")
@@ -8,27 +8,34 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
     end
     time = @elapsed begin
     basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
-    gb = Vector{Vector{Vector{UInt16}}}(undef, 4)
+    if pso > 0
+        gb = Vector{Vector{Vector{UInt16}}}(undef, 4)
+    end
     tsupp = [UInt16[]]
     if lattice == "chain" 
         coe1 = Vector{Vector{Vector{Int8}}}(undef, 4)
         bi1 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 4)
         coe2 = Vector{Vector{Vector{Complex{Int8}}}}(undef, 4)
         bi2 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 4)
-        coe3 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
-        bi3 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
-        coe4 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
-        bi4 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
+        if pso > 0
+            coe3 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
+            bi3 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
+            coe4 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
+            bi4 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
+        end
     else
         veig1 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
         ceig1 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
-        veig2 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
-        ceig2 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
+        if pso > 0
+            veig2 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
+            ceig2 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
+        end
     end
     for i = 1:4
-        basis[i] = split_basis(L, i-1, lattice=lattice, extra=extra, three_type=three_type)
+        basis[i] = split_basis(L, i-1, d, lattice=lattice, extra=extra, three_type=three_type)
         if lattice == "chain"
             k = Int(length(basis[i])/L)
+            # processing diagonal blocks
             coe1[i] = Vector{Vector{Int8}}(undef, k)
             bi1[i] = Vector{Vector{Vector{UInt16}}}(undef, k)
             for j = 1:k
@@ -42,6 +49,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                     end
                 end
             end
+            # processing non-diagonal blocks
             coe2[i] = Vector{Vector{Complex{Int8}}}(undef, Int(k*(k-1)/2))
             bi2[i] = Vector{Vector{Vector{UInt16}}}(undef, Int(k*(k-1)/2))
             for j1 = 1:k-1, j2 = j1+1:k
@@ -58,9 +66,11 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
             end
         else
             k = Int(length(basis[i])/L^2)
+            # implementing the first block-diagonalization
             sveig = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
             sceig = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
             for j = 1:k
+                # processing diagonal blocks
                 ind = Int(((j-1)*(2k-j+2)*L)/2) + 1
                 ctemp = Vector{Vector{Int8}}(undef, Int(L/2)+1)
                 vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
@@ -70,6 +80,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                     vtemp[r], ctemp[r] = [v1], [c1]
                 end
                 sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true)
+                # processing non-diagonal blocks
                 for p = 1:(k-j+1)*L - 1 
                     ctemp = Vector{Vector{Complex{Int8}}}(undef, L)
                     vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
@@ -81,6 +92,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                     sveig[ind+p], sceig[ind+p] = eigen_circmat(vtemp, ctemp, L)
                 end
             end
+            # implementing the first block-diagonalization
             veig1[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
             ceig1[i] = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
             for j = 1:k, l = 0:k-j, p = 1:L
@@ -91,58 +103,60 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                 append!(tsupp, veig1[i][ind+p]...)
             end
         end
-        gb[i] = basis[i][length.(basis[i]) .<= soc]
-        if lattice == "chain"
-            k = Int(length(gb[i])/L)
-            coe3[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, k)
-            bi3[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, k)
-            for j = 1:k
-                coe3[i][j] = Vector{Vector{Complex{Int8}}}(undef, Int(L/2)+1)
-                bi3[i][j] = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
-                for r = 1:Int(L/2)+1
-                    bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], L, lattice=lattice)
-                end
-            end
-            coe4[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, Int(k*(k-1)/2))
-            bi4[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k-1)/2))
-            for j1 = 1:k-1, j2 = j1+1:k
-                j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
-                coe4[i][j] = Vector{Vector{Complex{Int8}}}(undef, L)
-                bi4[i][j] = Vector{Vector{Vector{UInt16}}}(undef, L)
-                for r = 1:L
-                    bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], L, lattice=lattice)
-                    append!(tsupp, bi4[i][j][r])
-                end        
-            end
-        else
-            k = Int(length(gb[i])/L^2)
-            sveig = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
-            sceig = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
-            for j = 1:k
-                ind = Int(((j-1)*(2k-j+2)*L)/2) + 1
-                ctemp = Vector{Vector{Int8}}(undef, Int(L/2)+1)
-                vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
-                for r = 1:Int(L/2)+1
-                    vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], L, lattice=lattice)
-                end
-                sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true)
-                for p = 1:(k-j+1)*L - 1 
-                    ctemp = Vector{Vector{Complex{Int8}}}(undef, L)
-                    vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
-                    for r = 1:L
-                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+p*L+r], L, lattice=lattice)
+        if pso > 0
+            gb[i] = basis[i][length.(basis[i]) .<= pso]
+            if lattice == "chain"
+                k = Int(length(gb[i])/L)
+                coe3[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, k)
+                bi3[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, k)
+                for j = 1:k
+                    coe3[i][j] = Vector{Vector{Complex{Int8}}}(undef, Int(L/2)+1)
+                    bi3[i][j] = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
+                    for r = 1:Int(L/2)+1
+                        bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], L, lattice=lattice)
                     end
-                    sveig[ind+p], sceig[ind+p] = eigen_circmat(vtemp, ctemp, L)
                 end
-            end
-            veig2[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
-            ceig2[i] = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
-            for j = 1:k, l = 0:k-j, p = 1:L
-                ind = Int(((j-1)*(2k-j+2)*L)/2) + l*L
-                vtemp = [sveig[ind+q][p] for q=1:L]
-                ctemp = [sceig[ind+q][p] for q=1:L]
-                veig2[i][ind+p], ceig2[i][ind+p] = eigen_circmat(vtemp, ctemp, L)
-                append!(tsupp, veig2[i][ind+p]...)
+                coe4[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, Int(k*(k-1)/2))
+                bi4[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k-1)/2))
+                for j1 = 1:k-1, j2 = j1+1:k
+                    j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
+                    coe4[i][j] = Vector{Vector{Complex{Int8}}}(undef, L)
+                    bi4[i][j] = Vector{Vector{Vector{UInt16}}}(undef, L)
+                    for r = 1:L
+                        bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], L, lattice=lattice)
+                        append!(tsupp, bi4[i][j][r])
+                    end        
+                end
+            else
+                k = Int(length(gb[i])/L^2)
+                sveig = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
+                sceig = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
+                for j = 1:k
+                    ind = Int(((j-1)*(2k-j+2)*L)/2) + 1
+                    ctemp = Vector{Vector{Int8}}(undef, Int(L/2)+1)
+                    vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
+                    for r = 1:Int(L/2)+1
+                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], L, lattice=lattice)
+                    end
+                    sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true)
+                    for p = 1:(k-j+1)*L - 1 
+                        ctemp = Vector{Vector{Complex{Int8}}}(undef, L)
+                        vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
+                        for r = 1:L
+                            vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+p*L+r], L, lattice=lattice)
+                        end
+                        sveig[ind+p], sceig[ind+p] = eigen_circmat(vtemp, ctemp, L)
+                    end
+                end
+                veig2[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k+1)/2)*L)
+                ceig2[i] = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
+                for j = 1:k, l = 0:k-j, p = 1:L
+                    ind = Int(((j-1)*(2k-j+2)*L)/2) + l*L
+                    vtemp = [sveig[ind+q][p] for q=1:L]
+                    ctemp = [sceig[ind+q][p] for q=1:L]
+                    veig2[i][ind+p], ceig2[i][ind+p] = eigen_circmat(vtemp, ctemp, L)
+                    append!(tsupp, veig2[i][ind+p]...)
+                end
             end
         end
     end
@@ -210,6 +224,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                     mb = max(2*k, mb)
                 end
             end
+            # processing diagonal blocks
             for j = 1:k, l = 1:L
                 if i == 1 && l == 1
                     pp = pos[l][j+1, j+1] + pos[l][j+k+2, j+k+2]
@@ -228,6 +243,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
                     end
                 end
             end
+            # processing non-diagonal blocks
             for j1 = 1:k-1, j2 = j1+1:k, l = 1:L
                 if i == 1 && l == 1
                     pp1 = pos[l][j1+1, j2+1] + pos[l][j1+k+2, j2+k+2]
@@ -296,116 +312,129 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
     if QUIET == false
         println("Finished block-diagonalization in $time seconds.")
         println("SDP size: n = $mb, m = $ltsupp")
-        println("Adding linear state optimality constraints...")
     end
-    time = @elapsed begin
-    if lattice == "chain"
-        mons = generate_mons(L, positivity == false ? positivity : 8)
-        mons = filter_mons(mons, tsupp, L, lattice="chain")
-        for mon in mons
-            fr = @variable(model)
-            for i = 1:L, j = 1:3
-                word = UInt16[3*(i-1)+j; 3*mod(i, L)+j; mon]
-                word,coef = reduce!(word, L=L, lattice="chain")
-                if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
-                    add_to_expression!(cons[Locb], imag(coef), fr)
-                end
-            end
+    if lso == true
+        if QUIET == false
+            println("Adding linear state optimality constraints...")
         end
-    else
-        mons = generate_mons(L^2, 9)
-        mons = filter_mons(mons, tsupp, L, lattice="square")
-        for mon in mons
-            fr = @variable(model)
-            for i = 1:L, w = 1:L, j = 1:3
-                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+1, w, L=L)-1)+j; mon]
-                word,coef = reduce!(word, L=L, lattice="square")
-                if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
-                    add_to_expression!(cons[Locb], imag(coef), fr)
-                end
-                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+1, L=L)-1)+j; mon]
-                word,coef = reduce!(word, L=L, lattice="square")
-                if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
-                    add_to_expression!(cons[Locb], imag(coef), fr)
-                end
-            end
-        end
-    end
-    end
-    if QUIET == false
-        println("Added linear state optimality constraints in $time seconds.")
-        println("Adding PSD state optimality constraints...")
-    end
-    time = @elapsed begin
-    if lattice == "chain"
-        for i = 1:4
-            k = Int(length(gb[i])/L)
-            pos = Vector{Symmetric{VariableRef}}(undef, L)
-            for j = 1:L
-                pos[j] = @variable(model, [1:2*k, 1:2*k], PSD)
-            end
-            for j = 1:k, l = 1:L
-                pp = pos[l][j, j] + pos[l][j+k, j+k]
-                for s = 1:length(coe3[i][j][1])
-                    Locb = bfind(tsupp, ltsupp, bi3[i][j][1][s])
-                    @inbounds add_to_expression!(cons[Locb], coe3[i][j][1][s], pp)
-                end
-                for r = 1:Int(L/2)-1, s = 1:length(coe3[i][j][r+1])
-                    Locb = bfind(tsupp, ltsupp, bi3[i][j][r+1][s])
-                    @inbounds add_to_expression!(cons[Locb], 2*coe3[i][j][r+1][s]*cos(2*pi*r*(l-1)/L), pp)
-                end
-                for s = 1:length(coe3[i][j][end])
-                    Locb = bfind(tsupp, ltsupp, bi3[i][j][end][s])
-                    @inbounds add_to_expression!(cons[Locb], coe3[i][j][end][s]*(-1)^(l-1), pp)
-                end
-            end
-            for j1 = 1:k-1, j2 = j1+1:k, l = 1:L
-                pp1 = pos[l][j1, j2] + pos[l][j1+k, j2+k]
-                pp2 = pos[l][j1+k, j2] - pos[l][j2+k, j1]
-                j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
-                for r = 1:L, s = 1:length(coe4[i][j][r])
-                    Locb = bfind(tsupp, ltsupp, bi4[i][j][r][s])
-                    if real(coe4[i][j][r][s]) != 0
-                        @inbounds add_to_expression!(cons[Locb], 2*real(coe4[i][j][r][s])*cos(2*pi*(r-1)*(l-1)/L), pp1)
-                        @inbounds add_to_expression!(cons[Locb], -2*real(coe4[i][j][r][s])*sin(2*pi*(r-1)*(l-1)/L), pp2)
-                    else
-                        @inbounds add_to_expression!(cons[Locb], -2*imag(coe4[i][j][r][s])*sin(2*pi*(r-1)*(l-1)/L), pp1)
-                        @inbounds add_to_expression!(cons[Locb], -2*imag(coe4[i][j][r][s])*cos(2*pi*(r-1)*(l-1)/L), pp2)
+        time = @elapsed begin
+            if lattice == "chain"
+                mons = generate_mons(L, lol, positivity-1)
+                println(length(mons))
+                mons = filter_mons(mons, tsupp, L, lattice="chain")
+                println(length(mons))
+                for mon in mons
+                    fr = @variable(model)
+                    for i = 1:L, j = 1:3
+                        word = UInt16[3*(i-1)+j; 3*mod(i, L)+j; mon]
+                        word,coef = reduce!(word, L=L, lattice="chain")
+                        if imag(coef) != 0
+                            Locb = bfind(tsupp, ltsupp, word)
+                            add_to_expression!(cons[Locb], imag(coef), fr)
+                        end
                     end
                 end
-            end
-        end
-    else
-        for i = 1:4
-            k = Int(length(gb[i])/L^2)
-            pos = Matrix{Symmetric{VariableRef}}(undef, L, L)
-            for l = 1:L, u = 1:L
-                pos[l, u] = @variable(model, [1:2*k, 1:2*k], PSD)
-            end
-            for j1 = 1:k, j2 = j1:k, l = 1:L
-                ind = Int(((j1-1)*(2k-j1+2)*L)/2) + (j2-j1)*L
-                for u = 1:L
-                    pp1 = pos[l, u][j1, j2] + pos[l, u][j1+k, j2+k]
-                    pp2 = pos[l, u][j1+k, j2] - pos[l, u][j2+k, j1]
-                    for (s,c) in enumerate(ceig2[i][ind+l][u])
-                        Locb = bfind(tsupp, ltsupp, veig2[i][ind+l][u][s])
-                        if j1 == j2
-                            @inbounds add_to_expression!(cons[Locb], real(c), pp1)
-                        else
-                            @inbounds add_to_expression!(cons[Locb], 2*real(c), pp1)
-                            @inbounds add_to_expression!(cons[Locb], -2*imag(c), pp2)
+            else
+                mons = generate_mons(L^2, 2*L, 0)
+                println(length(mons))             
+                mons = filter_mons(mons, tsupp, L, lattice="square")
+                println(length(mons))
+                for mon in mons
+                    fr = @variable(model)
+                    for i = 1:L, w = 1:L, j = 1:3
+                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+1, w, L=L)-1)+j; mon]
+                        word,coef = reduce!(word, L=L, lattice="square")
+                        if imag(coef) != 0
+                            Locb = bfind(tsupp, ltsupp, word)
+                            add_to_expression!(cons[Locb], imag(coef), fr)
+                        end
+                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+1, L=L)-1)+j; mon]
+                        word,coef = reduce!(word, L=L, lattice="square")
+                        if imag(coef) != 0
+                            Locb = bfind(tsupp, ltsupp, word)
+                            add_to_expression!(cons[Locb], imag(coef), fr)
                         end
                     end
                 end
             end
         end
+        if QUIET == false
+            println("Added linear state optimality constraints in $time seconds.")
+        end
     end
-    end
-    if QUIET == false
-        println("Added PSD state optimality constraints in $time seconds.")
+    if pso > 0
+        if QUIET == false
+            println("Adding PSD state optimality constraints...")
+        end
+        time = @elapsed begin
+            if lattice == "chain"
+                for i = 1:4
+                    k = Int(length(gb[i])/L)
+                    pos = Vector{Symmetric{VariableRef}}(undef, L)
+                    for j = 1:L
+                        pos[j] = @variable(model, [1:2*k, 1:2*k], PSD)
+                    end
+                    for j = 1:k, l = 1:L
+                        pp = pos[l][j, j] + pos[l][j+k, j+k]
+                        for s = 1:length(coe3[i][j][1])
+                            Locb = bfind(tsupp, ltsupp, bi3[i][j][1][s])
+                            @inbounds add_to_expression!(cons[Locb], coe3[i][j][1][s], pp)
+                        end
+                        for r = 1:Int(L/2)-1, s = 1:length(coe3[i][j][r+1])
+                            Locb = bfind(tsupp, ltsupp, bi3[i][j][r+1][s])
+                            @inbounds add_to_expression!(cons[Locb], 2*coe3[i][j][r+1][s]*cos(2*pi*r*(l-1)/L), pp)
+                        end
+                        for s = 1:length(coe3[i][j][end])
+                            Locb = bfind(tsupp, ltsupp, bi3[i][j][end][s])
+                            @inbounds add_to_expression!(cons[Locb], coe3[i][j][end][s]*(-1)^(l-1), pp)
+                        end
+                    end
+                    for j1 = 1:k-1, j2 = j1+1:k, l = 1:L
+                        pp1 = pos[l][j1, j2] + pos[l][j1+k, j2+k]
+                        pp2 = pos[l][j1+k, j2] - pos[l][j2+k, j1]
+                        j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
+                        for r = 1:L, s = 1:length(coe4[i][j][r])
+                            Locb = bfind(tsupp, ltsupp, bi4[i][j][r][s])
+                            if real(coe4[i][j][r][s]) != 0
+                                @inbounds add_to_expression!(cons[Locb], 2*real(coe4[i][j][r][s])*cos(2*pi*(r-1)*(l-1)/L), pp1)
+                                @inbounds add_to_expression!(cons[Locb], -2*real(coe4[i][j][r][s])*sin(2*pi*(r-1)*(l-1)/L), pp2)
+                            else
+                                @inbounds add_to_expression!(cons[Locb], -2*imag(coe4[i][j][r][s])*sin(2*pi*(r-1)*(l-1)/L), pp1)
+                                @inbounds add_to_expression!(cons[Locb], -2*imag(coe4[i][j][r][s])*cos(2*pi*(r-1)*(l-1)/L), pp2)
+                            end
+                        end
+                    end
+                end
+            else
+                w = pso == 1 ? 2 : 1
+                for i = w:4
+                    k = Int(length(gb[i])/L^2)
+                    pos = Matrix{Symmetric{VariableRef}}(undef, L, L)
+                    for l = 1:L, u = 1:L
+                        pos[l, u] = @variable(model, [1:2*k, 1:2*k], PSD)
+                    end
+                    for j1 = 1:k, j2 = j1:k, l = 1:L
+                        ind = Int(((j1-1)*(2k-j1+2)*L)/2) + (j2-j1)*L
+                        for u = 1:L
+                            pp1 = pos[l, u][j1, j2] + pos[l, u][j1+k, j2+k]
+                            pp2 = pos[l, u][j1+k, j2] - pos[l, u][j2+k, j1]
+                            for (s,c) in enumerate(ceig2[i][ind+l][u])
+                                Locb = bfind(tsupp, ltsupp, veig2[i][ind+l][u][s])
+                                if j1 == j2
+                                    @inbounds add_to_expression!(cons[Locb], real(c), pp1)
+                                else
+                                    @inbounds add_to_expression!(cons[Locb], 2*real(c), pp1)
+                                    @inbounds add_to_expression!(cons[Locb], -2*imag(c), pp2)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if QUIET == false
+            println("Added PSD state optimality constraints in $time seconds.")
+        end
     end
     if positivity != false
         if QUIET == false
@@ -425,16 +454,6 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
         end
     end
     obj = @variable(model, lower)
-    if totalspin == true
-        free = @variable(model)
-        obj += 4*sector*(sector+1)*free
-        for i = 1:L, j = 1:L
-            temp = UInt16[3*(i-1)+1; 3*(j-1)+1]
-            bi = reduce!(temp, L=L, lattice=lattice)[1]
-            Locb = bfind(tsupp, ltsupp, bi)
-            @inbounds add_to_expression!(cons[Locb], 3, free)
-        end
-    end
     if energy != []
         pos = @variable(model, [1:2], lower_bound=0)
         Locb = bfind(tsupp, ltsupp, [1;4])
@@ -484,7 +503,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int; soc=3, 
        println("solution status: $status")
     end
     println("optimum = $objv")
-    mvar = -dual.(con)
+    mvar = -dual.(con) # extract moments
     if correlation == true
         if lattice == "chain"
             cor0 = zeros(Int(L/2))
@@ -573,26 +592,26 @@ function PSDstate_entry(ba1, ba2, L; lattice="chain")
     return resort(bis, coef)
 end
 
-function generate_mons(N, b)
+function generate_mons(N, b1, b2)
     mons = Vector{UInt16}[]
     for i = 2:N-1, j = i+1:N
         push!(mons, [1; 3*(i-1)+2; 3*(j-1)+3])
     end
-    for i = 2:N-1, j = i+1:N, k = 2:N-1, l = k+1:N
-        if k != i && k != j && l != i && l != j
+    for i = 2:b1-1, j = i+1:b1, k = 2:b1-1, l = k+1:b1
+        if length(unique([i;j;k;l])) == 4
             for t = 1:3
                 push!(mons, sort([1; 3*(i-1)+2; 3*(j-1)+3; 3*(k-1)+t; 3*(l-1)+t]))
             end
         end
     end
-    for i = 2:b-1, j = i+1:b, k = 2:b-3, l = k+1:b-2, u = l+1:b-1, v = u+1:b
-        if k != i && k != j && l != i && l != j && u != i && u != j && v != i && v != j
+    for i = 2:b2-1, j = i+1:b2, k = 2:b2-3, l = k+1:b2-2, u = l+1:b2-1, v = u+1:b2
+        if length(unique([i;j;k;l;u;v])) == 6
             for t = 1:3
                 push!(mons, sort([1; 3*(i-1)+2; 3*(j-1)+3; 3*(k-1)+t; 3*(l-1)+t; 3*(u-1)+t; 3*(v-1)+t]))
             end
         end
     end
-    for i = 2:b-1, j = i+1:b, k = 2:b, l = 2:b, u = 2:b, v = 2:b
+    for i = 2:b2-1, j = i+1:b2, k = 2:b2-1, l = k+1:b2, u = 2:b2-1, v = u+1:b2
         if length(unique([i;j;k;l;u;v])) == 6
             for s = 1:2, t = s+1:3
                 push!(mons, sort([1; 3*(i-1)+2; 3*(j-1)+3; 3*(k-1)+s; 3*(l-1)+s; 3*(u-1)+t; 3*(v-1)+t]))
@@ -661,14 +680,14 @@ function filter_mons(mons, tsupp, L; lattice="chain")
 end
 
 function count_reduce(i, s, ba, L)
-    loc = ceil.(UInt8, ba/3)
+    loc = ceil.(UInt16, ba/3)
     u = bfind(loc, length(loc), i)
     v = bfind(loc, length(loc), mod(i, L)+1)
     return (u !== nothing && mod(ba[u], 3) != mod(s, 3)) + (v !== nothing && mod(ba[v], 3) != mod(s, 3)) == 1
 end
 
 function count_reduce(i, j, s, ba, L)
-    loc = ceil.(UInt8, ba/3)
+    loc = ceil.(UInt16, ba/3)
     u = bfind(loc, length(loc), slabel(i, j, L=L))
     v = bfind(loc, length(loc), slabel(i+1, j, L=L))
     w = bfind(loc, length(loc), slabel(i, j+1, L=L))
