@@ -320,9 +320,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         time = @elapsed begin
             if lattice == "chain"
                 mons = generate_mons(L, lol, positivity-1)
-                println(length(mons))
                 mons = filter_mons(mons, tsupp, L, lattice="chain")
-                println(length(mons))
                 for mon in mons
                     fr = @variable(model)
                     for i = 1:L, j = 1:3
@@ -335,10 +333,8 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     end
                 end
             else
-                mons = generate_mons(L^2, 2*L, 0)
-                println(length(mons))             
+                mons = generate_mons(L^2, 2*L, 0)          
                 mons = filter_mons(mons, tsupp, L, lattice="square")
-                println(length(mons))
                 for mon in mons
                     fr = @variable(model)
                     for i = 1:L, w = 1:L, j = 1:3
