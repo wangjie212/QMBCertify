@@ -1,37 +1,36 @@
 function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lso=true, lol=Int(L/2), pso=3, energy=[], QUIET=false, lattice="chain",
     positivity=false, extra=0, three_type=[1;1], J2=0, correlation=false, mosek_setting=mosek_para())
     println("*********************************** QMBCertify ***********************************")
-    println("Version 0.2.0, developed by Jie Wang, 2020--2024")
     println("QMBCertify is launching...")
     if QUIET == false
         println("Generating the monomial basis...")
     end
     time = @elapsed begin
-    basis = Vector{Vector{Vector{UInt16}}}(undef, 4)
+    basis = Vector{Vector{Vector{UInt16}}}(undef, 2)
     if pso > 0
-        gb = Vector{Vector{Vector{UInt16}}}(undef, 4)
+        gb = Vector{Vector{Vector{UInt16}}}(undef, 2)
     end
     tsupp = [UInt16[]]
     if lattice == "chain" 
-        coe1 = Vector{Vector{Vector{Int8}}}(undef, 4)
-        bi1 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 4)
-        coe2 = Vector{Vector{Vector{Complex{Int8}}}}(undef, 4)
-        bi2 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 4)
+        coe1 = Vector{Vector{Vector{Int8}}}(undef, 2)
+        bi1 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 2)
+        coe2 = Vector{Vector{Vector{Complex{Int8}}}}(undef, 2)
+        bi2 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 2)
         if pso > 0
-            coe3 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
-            bi3 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
-            coe4 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 4)
-            bi4 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
+            coe3 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 2)
+            bi3 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
+            coe4 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 2)
+            bi4 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
         end
     else
-        veig1 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
-        ceig1 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
+        veig1 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
+        ceig1 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 2)
         if pso > 0
-            veig2 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 4)
-            ceig2 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 4)
+            veig2 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
+            ceig2 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 2)
         end
     end
-    for i = 1:4
+    for i = 1:2
         basis[i] = split_basis(L, i-1, d, lattice=lattice, extra=extra, three_type=three_type)
         if lattice == "chain"
             k = Int(length(basis[i])/L)
@@ -203,7 +202,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons = [AffExpr(0) for i=1:ltsupp]
     mb = 0
-    for i = 1:4
+    for i = 1:2
         if lattice == "chain"
             k = Int(length(basis[i])/L)
             pos = Vector{Symmetric{VariableRef}}(undef, L)
@@ -364,7 +363,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         end
         time = @elapsed begin
             if lattice == "chain"
-                for i = 1:4
+                for i = 1:2
                     k = Int(length(gb[i])/L)
                     pos = Vector{Symmetric{VariableRef}}(undef, L)
                     for j = 1:L
