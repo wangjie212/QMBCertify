@@ -401,8 +401,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     end
                 end
             else
-                w = pso == 1 ? 2 : 1
-                for i = w:4
+                for i = 1:2
                     k = Int(length(gb[i])/L^2)
                     pos = Matrix{Symmetric{VariableRef}}(undef, L, L)
                     for l = 1:L, u = 1:L
