@@ -2,9 +2,10 @@ mutable struct mosek_para
     tol_pfeas::Float64
     tol_dfeas::Float64
     tol_relgap::Float64
+    num_threads::Int64
 end
 
-mosek_para() = mosek_para(1e-8, 1e-8, 1e-8)
+mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, 0)
 
 function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
     basis = Vector{UInt16}[]

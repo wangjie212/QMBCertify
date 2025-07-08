@@ -17,9 +17,9 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         coe2 = Vector{Vector{Vector{Complex{Int8}}}}(undef, 2)
         bi2 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 2)
         if pso > 0
-            coe3 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 2)
+            coe3 = Vector{Vector{Vector{Vector{Float64}}}}(undef, 2)
             bi3 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
-            coe4 = Vector{Vector{Vector{Vector{Complex{Int8}}}}}(undef, 2)
+            coe4 = Vector{Vector{Vector{Vector{ComplexF64}}}}(undef, 2)
             bi4 = Vector{Vector{Vector{Vector{Vector{UInt16}}}}}(undef, 2)
         end
     else
@@ -103,26 +103,27 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
             end
         end
         if pso > 0
+            h = [ceil(Int, item[2]/3) - 1 for item in supp]
             gb[i] = basis[i][length.(basis[i]) .<= pso]
             if lattice == "chain"
                 k = Int(length(gb[i])/L)
-                coe3[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, k)
+                coe3[i] = Vector{Vector{Vector{Float64}}}(undef, k)
                 bi3[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, k)
                 for j = 1:k
-                    coe3[i][j] = Vector{Vector{Complex{Int8}}}(undef, Int(L/2)+1)
+                    coe3[i][j] = Vector{Vector{Float64}}(undef, Int(L/2)+1)
                     bi3[i][j] = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
                     for r = 1:Int(L/2)+1
-                        bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], L, lattice=lattice)
+                        bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], h, coe, L, lattice=lattice)
                     end
                 end
-                coe4[i] = Vector{Vector{Vector{Complex{Int8}}}}(undef, Int(k*(k-1)/2))
+                coe4[i] = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k-1)/2))
                 bi4[i] = Vector{Vector{Vector{Vector{UInt16}}}}(undef, Int(k*(k-1)/2))
                 for j1 = 1:k-1, j2 = j1+1:k
                     j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
-                    coe4[i][j] = Vector{Vector{Complex{Int8}}}(undef, L)
+                    coe4[i][j] = Vector{Vector{ComplexF64}}(undef, L)
                     bi4[i][j] = Vector{Vector{Vector{UInt16}}}(undef, L)
                     for r = 1:L
-                        bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], L, lattice=lattice)
+                        bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], h, coe, L, lattice=lattice)
                         append!(tsupp, bi4[i][j][r])
                     end        
                 end
@@ -132,17 +133,17 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 sceig = Vector{Vector{Vector{ComplexF64}}}(undef, Int(k*(k+1)/2)*L)
                 for j = 1:k
                     ind = Int(((j-1)*(2k-j+2)*L)/2) + 1
-                    ctemp = Vector{Vector{Int8}}(undef, Int(L/2)+1)
+                    ctemp = Vector{Vector{Float64}}(undef, Int(L/2)+1)
                     vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
                     for r = 1:Int(L/2)+1
-                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], L, lattice=lattice)
+                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], h, coe, L, lattice=lattice)
                     end
                     sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true)
                     for p = 1:(k-j+1)*L - 1 
-                        ctemp = Vector{Vector{Complex{Int8}}}(undef, L)
+                        ctemp = Vector{Vector{ComplexF64}}(undef, L)
                         vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
                         for r = 1:L
-                            vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+p*L+r], L, lattice=lattice)
+                            vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+p*L+r], h, coe, L, lattice=lattice)
                         end
                         sveig[ind+p], sceig[ind+p] = eigen_circmat(vtemp, ctemp, L)
                     end
@@ -198,7 +199,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     end
     time = @elapsed begin
     model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
-        "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap))
+        "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons = [AffExpr(0) for i=1:ltsupp]
     mb = 0
@@ -317,37 +318,38 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
             println("Adding linear state optimality constraints...")
         end
         time = @elapsed begin
+            h = [ceil(Int, item[2]/3) - 1 for item in supp]
             if lattice == "chain"
                 mons = generate_mons(L, lol, positivity-1)
-                mons = filter_mons(mons, tsupp, L, lattice="chain")
+                mons = filter_mons(mons, tsupp, h, coe, L, lattice="chain")
                 for mon in mons
                     fr = @variable(model)
-                    for i = 1:L, j = 1:3
-                        word = UInt16[3*(i-1)+j; 3*mod(i, L)+j; mon]
+                    for (u, v) in enumerate(h), i = 1:L, j = 1:3
+                        word = UInt16[3*(i-1)+j; 3*mod(i-1+v, L)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="chain")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], imag(coef), fr)
+                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
                         end
                     end
                 end
             else
-                mons = generate_mons(L^2, 2*L, 0)          
-                mons = filter_mons(mons, tsupp, L, lattice="square")
+                mons = generate_mons(L^2, L^2, 0)
+                mons = filter_mons(mons, tsupp, h, coe, L, lattice="square")
                 for mon in mons
                     fr = @variable(model)
-                    for i = 1:L, w = 1:L, j = 1:3
-                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+1, w, L=L)-1)+j; mon]
+                    for (u, v) in enumerate(h), i = 1:L, w = 1:L, j = 1:3
+                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+v, w, L=L)-1)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], imag(coef), fr)
+                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
                         end
-                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+1, L=L)-1)+j; mon]
+                        word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+v, L=L)-1)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], imag(coef), fr)
+                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
                         end
                     end
                 end
@@ -468,18 +470,17 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         obj -= energy[2]*pos[2]
     end
     @objective(model, Max, obj)
-    bc = zeros(ltsupp)
     for i = 1:length(supp)
         Locb = bfind(tsupp, ltsupp, supp[i])
         if Locb === nothing
            @error "The monomial basis is not enough!"
            return nothing,nothing,nothing,nothing
         else
-           bc[Locb] = coe[i]
+           cons[Locb] -= coe[i]
         end
     end
     cons[1] += lower
-    @constraint(model, con[i=1:ltsupp], cons[i]==bc[i])
+    @constraint(model, con, cons==zeros(ltsupp))
     if QUIET == false
         println("Solving the SDP...")
     end
@@ -497,7 +498,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
        println("solution status: $status")
     end
     println("optimum = $objv")
-    mvar = -dual.(con) # extract moments
+    mvar = -dual(con) # extract moments
     if correlation == true
         if lattice == "chain"
             cor0 = zeros(Int(L/2))
@@ -557,29 +558,29 @@ function update!(coef, bis, bi, L; λ=1, lattice="chain")
     end
 end
 
-function PSDstate_entry(ba1, ba2, L; lattice="chain")
-    coef = Complex{Int8}[]
+function PSDstate_entry(ba1, ba2, h, c, L; lattice="chain")
+    coef = ComplexF64[]
     bis = Vector{UInt16}[]
     if lattice == "chain"
-        for u = 1:L, v = 1:3
-            s = count_reduce(u, v, ba1, L)
-            t = count_reduce(u, v, ba2, L)
+        for (i, k) in enumerate(h), u = 1:L, v = 1:3
+            s = count_reduce(u, v, k, ba1, L)
+            t = count_reduce(u, v, k, ba2, L)
             if s + t > 0
-                bi = UInt16[ba1; 3*(u-1)+v; 3*mod(u, L)+v; ba2]
-                update!(coef, bis, bi, L, λ=s+t, lattice="chain")
+                bi = UInt16[ba1; 3*(u-1)+v; 3*mod(u-1+k, L)+v; ba2]
+                update!(coef, bis, bi, L, λ=c[i]*(s+t), lattice="chain")
             end
         end
     else
-        for u = 1:L, w = 1:L, v = 1:3
-            s = count_reduce(u, w, v, ba1, L)
-            t = count_reduce(u, w, v, ba2, L)
+        for (i, k) in enumerate(h), u = 1:L, w = 1:L, v = 1:3
+            s = count_reduce(u, w, v, k, ba1, L)
+            t = count_reduce(u, w, v, k, ba2, L)
             if s[1] + t[1] > 0
-                bi = UInt16[ba1; 3*(slabel(u, w, L=L)-1)+v; 3*(slabel(u+1, w, L=L)-1)+v; ba2]
-                update!(coef, bis, bi, L, λ=s[1]+t[1], lattice="square")
+                bi = UInt16[ba1; 3*(slabel(u, w, L=L)-1)+v; 3*(slabel(u+k, w, L=L)-1)+v; ba2]
+                update!(coef, bis, bi, L, λ=c[i]*(s[1]+t[1]), lattice="square")
             end
             if s[2] + t[2] > 0
-                bi = UInt16[ba1; 3*(slabel(u, w, L=L)-1)+v; 3*(slabel(u, w+1, L=L)-1)+v; ba2]
-                update!(coef, bis, bi, L, λ=s[2]+t[2], lattice="square")
+                bi = UInt16[ba1; 3*(slabel(u, w, L=L)-1)+v; 3*(slabel(u, w+k, L=L)-1)+v; ba2]
+                update!(coef, bis, bi, L, λ=c[i]*(s[2]+t[2]), lattice="square")
             end
         end
     end
@@ -616,15 +617,15 @@ function generate_mons(N, b1, b2)
     return mons
 end
 
-function filter_mons(mons, tsupp, L; lattice="chain")
+function filter_mons(mons, tsupp, h, c, L; lattice="chain")
     ltsupp = length(tsupp)
-    lc = zeros(Int, length(mons))
-    rd = rand(Int, ltsupp)
+    lc = zeros(Float64, length(mons))
+    rd = ceil.(Int, rand(ltsupp)*10^8)
     if lattice == "chain"
-        for k = 1:length(mons)
+        for (k, mon) in enumerate(mons)
             flag = 1
-            for i = 1:L, j = 1:3
-                word = UInt16[3*(i-1)+j; 3*mod(i, L)+j; mons[k]]
+            for (u, v) in enumerate(h), i = 1:L, j = 1:3
+                word = UInt16[3*(i-1)+j; 3*mod(i-1+v, L)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="chain")
                 if imag(coef) != 0
                     Locb = bfind(tsupp, ltsupp, word)
@@ -632,7 +633,7 @@ function filter_mons(mons, tsupp, L; lattice="chain")
                         flag = 0
                         break
                     end
-                    lc[k] += imag(coef)*rd[Locb]
+                    lc[k] += c[u]*imag(coef)*rd[Locb]
                 end
             end
             if flag == 0
@@ -640,10 +641,10 @@ function filter_mons(mons, tsupp, L; lattice="chain")
             end
         end
     else
-        for k = 1:length(mons)
+        for (k, mon) in enumerate(mons)
             flag = 1
-            for i = 1:L, w = 1:L, j = 1:3
-                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+1, w, L=L)-1)+j; mons[k]]
+            for (u, v) in enumerate(h), i = 1:L, w = 1:L, j = 1:3
+                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+v, w, L=L)-1)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="square")
                 if imag(coef) != 0
                     Locb = bfind(tsupp, ltsupp, word)
@@ -651,9 +652,9 @@ function filter_mons(mons, tsupp, L; lattice="chain")
                         flag = 0
                         break
                     end
-                    lc[k] += imag(coef)*rd[Locb]
+                    lc[k] += c[u]*imag(coef)*rd[Locb]
                 end
-                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+1, L=L)-1)+j; mons[k]]
+                word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+v, L=L)-1)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="square")
                 if imag(coef) != 0
                     Locb = bfind(tsupp, ltsupp, word)
@@ -661,7 +662,7 @@ function filter_mons(mons, tsupp, L; lattice="chain")
                         flag = 0
                         break
                     end
-                    lc[k] += imag(coef)*rd[Locb]
+                    lc[k] += c[u]*imag(coef)*rd[Locb]
                 end
             end
             if flag == 0
@@ -670,21 +671,21 @@ function filter_mons(mons, tsupp, L; lattice="chain")
         end
     end
     ind = unique(i -> abs(lc[i]), eachindex(lc))
-    return mons[ind[lc[ind] .!= 0]]
+    return mons[ind[abs.(lc[ind]) .> 0]]
 end
 
-function count_reduce(i, s, ba, L)
+function count_reduce(i, s, t, ba, L)
     loc = ceil.(UInt16, ba/3)
     u = bfind(loc, length(loc), i)
-    v = bfind(loc, length(loc), mod(i, L)+1)
+    v = bfind(loc, length(loc), smod(i+t, L))
     return (u !== nothing && mod(ba[u], 3) != mod(s, 3)) + (v !== nothing && mod(ba[v], 3) != mod(s, 3)) == 1
 end
 
-function count_reduce(i, j, s, ba, L)
+function count_reduce(i, j, s, t, ba, L)
     loc = ceil.(UInt16, ba/3)
     u = bfind(loc, length(loc), slabel(i, j, L=L))
-    v = bfind(loc, length(loc), slabel(i+1, j, L=L))
-    w = bfind(loc, length(loc), slabel(i, j+1, L=L))
+    v = bfind(loc, length(loc), slabel(i+t, j, L=L))
+    w = bfind(loc, length(loc), slabel(i, j+t, L=L))
     a = u !== nothing && mod(ba[u], 3) != mod(s, 3)
     b = v !== nothing && mod(ba[v], 3) != mod(s, 3)
     c = w !== nothing && mod(ba[w], 3) != mod(s, 3)
