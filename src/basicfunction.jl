@@ -7,7 +7,7 @@ end
 
 mosek_para() = mosek_para(1e-8, 1e-8, 1e-8, 0)
 
-function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
+function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
     basis = Vector{UInt16}[]
     if lattice == "square"
         tb2 = [[1;0], [0;1], [1;1], [1;-1], [2;0], [0;2], [2;1], [1;2], [2;2]]
@@ -31,18 +31,20 @@ function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
             for i = 1:L
                 push!(basis, [3*(i-1)+label])
             end
+            if d > 2
+                for i = 1:L
+                    push!(basis, sort([3*(i-1)+label;smod(3*(i-1+three_type[1])+label, 3*L);smod(3*(i-1+sum(three_type))+label, 3*L)]))
+                end
+                for l = 1:2, k = 1:3
+                    ind = rot(label)[l]*ones(Int, 3)
+                    ind[k] = label
+                    for i = 1:L
+                        push!(basis, sort([3*(i-1)+ind[1];smod(3*(i-1+three_type[1])+ind[2], 3*L);smod(3*(i-1+sum(three_type))+ind[3], 3*L)]))
+                    end
+                end
+            end
             for s = 0:extra, k in a1, i = 1:L
                 push!(basis, sort([3*(i-1)+k[1];smod(3*(i+s)+k[2], 3*L)]))
-            end
-            for i = 1:L
-                push!(basis, sort([3*(i-1)+label;smod(3*(i-1+three_type[1])+label, 3*L);smod(3*(i-1+sum(three_type))+label, 3*L)]))
-            end
-            for l = 1:2, k = 1:3
-                ind = rot(label)[l]*ones(Int, 3)
-                ind[k] = label
-                for i = 1:L
-                    push!(basis, sort([3*(i-1)+ind[1];smod(3*(i-1+three_type[1])+ind[2], 3*L);smod(3*(i-1+sum(three_type))+ind[3], 3*L)]))
-                end
             end
             if d > 3
                 for k in a2, i = 1:L
@@ -52,9 +54,6 @@ function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
         else
             for i = 1:L, j = 1:L
                 push!(basis, [3*(slabel(i, j, L=L)-1)+label])
-            end
-            for k in a1, s in tb2[1:lb2+extra], i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
             end
             if d > 2
                 for s in tb3, i = 1:L, j = 1:L
@@ -67,6 +66,9 @@ function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
                         push!(basis, sort([3*(slabel(i, j, L=L)-1)+ind[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+ind[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+ind[3]]))
                     end
                 end
+            end
+            for k in a1, s in tb2[1:lb2+extra], i = 1:L, j = 1:L
+                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
             end
             if d > 3
                 for k in a2, i = 1:L, j = 1:L
@@ -81,26 +83,28 @@ function split_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
             for s = 0:extra, k = 1:3, i = 1:L
                 push!(basis, sort([3*(i-1)+k;smod(3*(i+s)+k, 3*L)]))
             end
-            for k in a1, i = 1:L
-                push!(basis, sort([3*(i-1)+k[1];smod(3*(i-1+three_type[1])+k[2], 3*L);smod(3*(i-1+sum(three_type))+k[3], 3*L)]))
-            end
             if d > 3
                 for k in a2, i = 1:L
                     push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+                end
+            end
+            if d > 2
+                for k in a1, i = 1:L
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i-1+three_type[1])+k[2], 3*L);smod(3*(i-1+sum(three_type))+k[3], 3*L)]))
                 end
             end
         else
             for s in tb2[1:lb2+extra], k = 1:3, i = 1:L, j = 1:L
                 push!(basis, sort([3*(slabel(i, j, L=L)-1)+k;3*(slabel(i+s[1], j+s[2], L=L)-1)+k]))
             end
-            if d > 2
-                for s in tb3, k in a1, i = 1:L, j = 1:L
-                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+k[3]]))
-                end
-            end
             if d > 3
                 for k in a2, i = 1:L, j = 1:L
                     push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+1, j, L=L)-1)+k[2];3*(slabel(i, j+1, L=L)-1)+k[3];3*(slabel(i+1, j+1, L=L)-1)+k[4]]))
+                end
+            end
+            if d > 2
+                for s in tb3, k in a1, i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2];3*(slabel(i+s[3], j+s[4], L=L)-1)+k[3]]))
                 end
             end
         end
@@ -153,21 +157,15 @@ function reduce2!(a::Vector{UInt16})
             if s == [1, 2]
                 a[ind] += UInt16(2)
                 coef *= im
-            elseif s == [2, 1]
-                a[ind] += UInt16(1)
-                coef *= -im
-            elseif s == [1, 0]
-                a[ind] += UInt16(1)
-                coef *= -im
-            elseif s == [0, 1]
-                a[ind] -= UInt16(1)
-                coef *= im
-            elseif s == [2, 0]
-                a[ind] -= UInt16(1)
-                coef *= im
-            else
+            elseif s == [0, 2]
                 a[ind] -= UInt16(2)
                 coef *= -im
+            elseif s == [2, 1] || s == [1, 0]
+                a[ind] += UInt16(1)
+                coef *= -im
+            else
+                a[ind] -= UInt16(1)
+                coef *= im  
             end
             deleteat!(a, ind+1)
             la -= 1
@@ -175,6 +173,9 @@ function reduce2!(a::Vector{UInt16})
         else
             flag = 0
         end
+    end
+    if !isreal(coef)
+        coef = imag(coef)
     end
     return a,coef
 end
@@ -287,23 +288,26 @@ function smod(i, s)
     return r == 0 ? s : r
 end
 
-# compute the eigenvalues of a (symmetry) circulant matrix
-function eigen_circmat(supp, coe, L; symmetry=false)
-    seig = [Vector{UInt16}[] for i = 1:L]
+# compute the eigenvalues of a (symmetry, real) circulant matrix
+function eigen_circmat(supp, coe, L; symmetry=false, real_matrix=false)
+    ne = real_matrix == true ? Int(L/2)+1 : L
+    seig = [Vector{UInt16}[] for i = 1:ne]
     if symmetry == false
-        ceig = [ComplexF64[] for i = 1:L]
-        for i = 1:L
+        ceig = [ComplexF64[] for i = 1:ne]
+        for i = 1:ne
             for j = 1:L, (s,c) in enumerate(coe[j])
                 if c != 0
                     push!(seig[i], supp[j][s])
-                    push!(ceig[i], real(c)*cos(2*pi*(i-1)*(j-1)/L)-imag(c)*sin(2*pi*(i-1)*(j-1)/L)+(real(c)*sin(2*pi*(i-1)*(j-1)/L)+imag(c)*cos(2*pi*(i-1)*(j-1)/L))*im)
+                    push!(ceig[i], c*(cos(2*pi*(i-1)*(j-1)/L) + sin(2*pi*(i-1)*(j-1)/L)*im))
                 end
             end
-            seig[i], ceig[i] = resort(seig[i], ceig[i])
+            if !isempty(ceig[i])
+                seig[i], ceig[i] = resort(seig[i], ceig[i])
+            end
         end
     else
-        ceig = [Float64[] for i = 1:L]
-        for i = 1:L 
+        ceig = [Float64[] for i = 1:ne]
+        for i = 1:ne
             for (s,c) in enumerate(coe[1])
                 if c != 0
                     push!(seig[i], supp[1][s])
@@ -322,7 +326,9 @@ function eigen_circmat(supp, coe, L; symmetry=false)
                     push!(ceig[i], c*(-1)^(i-1))
                 end
             end
-            seig[i], ceig[i] = resort(seig[i], ceig[i])
+            if !isempty(ceig[i])
+                seig[i], ceig[i] = resort(seig[i], ceig[i])
+            end
         end
     end
     return seig, ceig

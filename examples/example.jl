@@ -1,15 +1,13 @@
 using QMBCertify
 
-
 # 1d Heisenberg model
 supp = Vector{UInt16}[[1;4]]
 coe = [3/4]
 N = 10 # number of spins
-@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=true, positivity=0, pso=2, extra=4, correlation=false)
+@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=false, rdm=0, pso=2, lso=0, extra=4, correlation=false, mosek_setting=mosek_para(1e-10, 1e-10, 1e-10, 0))
 
 N = 20 # number of spins
-@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=false, positivity=8, pso=0, extra=9, correlation=false)
-
+@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=false, rdm=8, pso=0, extra=9, correlation=false)
 
 # 1d J1-J2 Heisenberg model
 N = 10 # number of sites
@@ -18,21 +16,21 @@ supp = Vector{UInt16}[[1;4], [1;7]]
 coe = [3/4, 3/4*J2]
 r = 1
 tt = [1;1]
-@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=true, positivity=0, pso=2, extra=r-1, three_type=tt, correlation=false)
+@time opt,cor0,cor1,cor2 = GSB(supp, coe, N, 4, QUIET=true, rdm=0, pso=2, extra=r-1, three_type=tt, correlation=false)
 
 
 # 2d L×L Heisenberg model
 L = 4
 supp = [UInt16[1;4]]
 coe = [3/2]
-@time opt,cor,_,_ = GSB(supp, coe, L, 4, lattice="square", positivity=8, pso=2, extra=0, QUIET=false, correlation=false)
+@time opt,cor,_,_ = GSB(supp, coe, L, 2, lattice="square", rdm=0, pso=2, lso=0, extra=0, QUIET=false, correlation=false)
 
 
 # 2d L×L J1-J2 Heisenberg model
 L = 4
 supp = Vector{UInt16}[[1;4], [1;7]]
 coe = [3/2, 3/2*J2]
-@time opt,cor,_,_ = GSB(supp, coe, L, 4, lattice="square", positivity=0, pso=2, extra=0, QUIET=false, correlation=false)
+@time opt,cor,_,_ = GSB(supp, coe, L, 4, lattice="square", rdm=0, pso=2, extra=0, QUIET=false, correlation=false)
 
 
 # Ground state computation using DMRG
