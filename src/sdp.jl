@@ -1,5 +1,5 @@
 function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lso=true, lol=Int(L/2), pso=3, energy=[], QUIET=false, lattice="chain",
-    rdm=false, extra=0, three_type=[1;1], J2=0, correlation=false, mosek_setting=mosek_para())
+    rdm=false, extra=0, three_type=[1;1], J2=0, correlation=false, Gram=false, mosek_setting=mosek_para())
     println("*********************************** QMBCertify ***********************************")
     println("QMBCertify is launching...")
     if QUIET == false
@@ -46,7 +46,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 bi1[i][j] = Vector{Vector{UInt16}}(undef, Int(L/2))
                 for r = 1:Int(L/2)
                     bi = [basis[i][L*(j-1)+1]; basis[i][L*(j-1)+r+1]]
-                    bi1[i][j][r], coe1[i][j][r] = reduce!(bi, L=L, lattice=lattice)
+                    bi1[i][j][r], coe1[i][j][r] = reduce!(bi, L=L, lattice=lattice, realify=true)
                     if coe1[i][j][r] != 0
                         push!(tsupp, bi1[i][j][r])
                     end
@@ -61,7 +61,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 bi2[i][j] = Vector{Vector{UInt16}}(undef, L)
                 for r = 1:L
                     bi = [basis[i][L*(j1-1)+1]; basis[i][L*(j2-1)+r]]
-                    bi2[i][j][r],coe2[i][j][r] = reduce!(bi, L=L, lattice=lattice)
+                    bi2[i][j][r],coe2[i][j][r] = reduce!(bi, L=L, lattice=lattice, realify=true)
                     if coe2[i][j][r] != 0
                         push!(tsupp, bi2[i][j][r])
                     end
@@ -79,7 +79,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
                 for r = 1:Int(L/2)+1
                     bi = [basis[i][L^2*(j-1)+1]; basis[i][L^2*(j-1)+r]]
-                    v1,c1 = reduce!(bi, L=L, lattice=lattice)
+                    v1,c1 = reduce!(bi, L=L, lattice=lattice, realify=true)
                     vtemp[r], ctemp[r] = [v1], [c1]
                 end
                 sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true, real_matrix=true)
@@ -89,7 +89,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
                     for r = 1:L
                         bi = [basis[i][L^2*(j-1)+1]; basis[i][L^2*(j-1)+q*L+r]]
-                        v1,c1 = reduce!(bi, L=L, lattice=lattice)
+                        v1,c1 = reduce!(bi, L=L, lattice=lattice, realify=true)
                         vtemp[r], ctemp[r] = [v1], [c1]
                     end
                     sveig[ind+q], sceig[ind+q] = eigen_circmat(vtemp, ctemp, L, real_matrix=true)
@@ -229,34 +229,35 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
     cons = [AffExpr(0) for i=1:ltsupp]
     mb = 0
+    gram = Vector{Vector{Symmetric{VariableRef}}}(undef, 2)
     for i = 1:2
         if lattice == "chain"
             k = Int(length(basis[i])/L)
             mb = max(2*k, mb)
-            pos = Vector{Symmetric{VariableRef}}(undef, Int(L/2)+1)
+            gram[i] = Vector{Symmetric{VariableRef}}(undef, Int(L/2)+1)
             for l = 1:Int(L/2) + 1
                 if i == 1 && l == 1
-                    pos[1] = @variable(model, [1:k+1, 1:k+1], PSD)
-                    @inbounds add_to_expression!(cons[1], pos[1][1,1])
+                    gram[i][1] = @variable(model, [1:k+1, 1:k+1], PSD)
+                    @inbounds add_to_expression!(cons[1], gram[i][1][1,1])
                     for j = 1:k
                         bi,coef = reduce!(basis[1][L*(j-1)+1], L=L, lattice=lattice)
                         if coef != 0
                             Locb = bfind(tsupp, ltsupp, bi)
-                            @inbounds add_to_expression!(cons[Locb], 2*sqrt(L), pos[1][1,j+1])
+                            @inbounds add_to_expression!(cons[Locb], 2*sqrt(L), gram[i][1][1,j+1])
                         end
                     end
                 elseif l == 1 || l == Int(L/2) + 1
-                    pos[l] = @variable(model, [1:k, 1:k], PSD)
+                    gram[i][l] = @variable(model, [1:k, 1:k], PSD)
                 else
-                    pos[l] = @variable(model, [1:2*k, 1:2*k], PSD)
+                    gram[i][l] = @variable(model, [1:2*k, 1:2*k], PSD)
                 end
                 for j = 1:k
                     if i == 1 && l == 1
-                        pp = pos[l][j+1, j+1]
+                        pp = gram[i][l][j+1, j+1]
                     elseif l == 1 || l == Int(L/2) + 1
-                        pp = pos[l][j, j]
+                        pp = gram[i][l][j, j]
                     else
-                        pp = pos[l][j, j] + pos[l][j+k, j+k]
+                        pp = gram[i][l][j, j] + gram[i][l][j+k, j+k]
                     end
                     @inbounds add_to_expression!(cons[1], pp)
                     if coe1[i][j][end] != 0
@@ -272,12 +273,12 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 end
                 for j1 = 1:k-1, j2 = j1+1:k
                     if i == 1 && l == 1
-                        pp1 = pos[l][j1+1, j2+1]
+                        pp1 = gram[i][l][j1+1, j2+1]
                     elseif l == 1 || l == Int(L/2) + 1
-                        pp1 = pos[l][j1, j2]
+                        pp1 = gram[i][l][j1, j2]
                     else
-                        pp1 = pos[l][j1, j2] + pos[l][j1+k, j2+k]
-                        pp2 = pos[l][j1+k, j2] - pos[l][j2+k, j1]
+                        pp1 = gram[i][l][j1, j2] + gram[i][l][j1+k, j2+k]
+                        pp2 = gram[i][l][j1+k, j2] - gram[i][l][j2+k, j1]
                     end
                     j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
                     for r = 1:L
@@ -589,6 +590,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
        println("solution status: $status")
     end
     println("optimum = $objv")
+    cor0 = cor1 = cor2 = GramMat = moment = nothing
     mvar = -dual(con) # extract moments
     if correlation == true
         if lattice == "chain"
@@ -620,78 +622,89 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                 Locb = bfind(tsupp, ltsupp, word)
                 cor0[i,j] = mvar[Locb]
             end
-            cor1 = cor2 = nothing
         end
-    else
-        cor0 = cor1 = cor2 = nothing
+    end
+    if Gram == true
+        GramMat = Vector{Vector{Union{Matrix{Float64}, Matrix{ComplexF64}}}}(undef, 2)
+        for i = 1:2
+            k = Int(length(basis[i])/L)
+            GramMat[i] = Vector{Union{Matrix{Float64}, Matrix{ComplexF64}}}(undef, Int(L/2)+1)
+            for l = 1:Int(L/2)+1
+                if l == 1 || l == Int(L/2) + 1
+                    GramMat[i][l] = value.(gram[i][l])
+                else
+                    A = value.(gram[i][l])
+                    GramMat[i][l] = A[1:k,1:k] + A[k+1:2k,k+1:2k] + (A[k+1:2k,1:k] - A[1:k,k+1:2k])*im
+                end
+            end
+        end
     end
     # moment = Vector{Vector{Union{Matrix{Float64},Matrix{ComplexF64}}}}(undef, 2)
     # for i = 1:2
     #     moment[i] = Vector{Union{Matrix{Float64},Matrix{ComplexF64}}}(undef, Int(L/2) + 1)
     #     k = Int(length(basis[i])/L)
-    #     for j = 1:Int(L/2) + 1
-    #         if i == 1 && j == 1
+    #     for l = 1:Int(L/2) + 1
+    #         if i == 1 && l == 1
     #             moment[1][1] = zeros(k+1, k+1)
     #             moment[1][1][1,1] += mvar[1]
-    #             for l = 1:k
-    #                 bi,coef = reduce!(basis[1][L*(l-1)+1], L=L, lattice=lattice)
+    #             for j = 1:k
+    #                 bi,coef = reduce!(basis[1][L*(j-1)+1], L=L, lattice=lattice)
     #                 if coef != 0
     #                     Locb = bfind(tsupp, ltsupp, bi)
-    #                     moment[1][1][1,l+1] += sqrt(L)*mvar[Locb]
+    #                     moment[1][1][1,j+1] += sqrt(L)*mvar[Locb]
     #                 end
     #             end
-    #         elseif j == 1 || j == Int(L/2) + 1
-    #             moment[i][j] = zeros(k, k)
+    #         elseif l == 1 || l == Int(L/2) + 1
+    #             moment[i][l] = zeros(k, k)
     #         else
-    #             moment[i][j] = zeros(ComplexF64, k, k)
+    #             moment[i][l] = zeros(ComplexF64, k, k)
     #         end
-    #     end
-    #     for j = 1:k, l = 1:Int(L/2) + 1
-    #         if i == 1 && l == 1
-    #             moment[1][1][j+1, j+1] += mvar[1]
-    #         else
-    #             moment[i][l][j, j] += mvar[1]
-    #         end
-    #         if coe1[i][j][end] != 0
-    #             Locb = bfind(tsupp, ltsupp, bi1[i][j][end])
+    #         for j = 1:k
     #             if i == 1 && l == 1
-    #                 moment[1][1][j+1, j+1] += coe1[1][j][end]*mvar[Locb]
+    #                 moment[1][1][j+1, j+1] += mvar[1]
     #             else
-    #                 moment[i][l][j, j] += coe1[i][j][end]*(-1)^(l-1)*mvar[Locb]
+    #                 moment[i][l][j, j] += mvar[1]
     #             end
-    #         end
-    #         for r = 1:Int(L/2)-1
-    #             if coe1[i][j][r] != 0
-    #                 Locb = bfind(tsupp, ltsupp, bi1[i][j][r])
+    #             if coe1[i][j][end] != 0
+    #                 Locb = bfind(tsupp, ltsupp, bi1[i][j][end])
     #                 if i == 1 && l == 1
-    #                     moment[1][1][j+1, j+1] += 2*coe1[1][j][r]*mvar[Locb]
+    #                     moment[1][1][j+1, j+1] += coe1[1][j][end]*mvar[Locb]
     #                 else
-    #                     moment[i][l][j, j] += 2*coe1[i][j][r]*cos(2*pi*r*(l-1)/L)*mvar[Locb]
+    #                     moment[i][l][j, j] += coe1[i][j][end]*(-1)^(l-1)*mvar[Locb]
+    #                 end
+    #             end
+    #             for r = 1:Int(L/2)-1
+    #                 if coe1[i][j][r] != 0
+    #                     Locb = bfind(tsupp, ltsupp, bi1[i][j][r])
+    #                     if i == 1 && l == 1
+    #                         moment[1][1][j+1, j+1] += 2*coe1[1][j][r]*mvar[Locb]
+    #                     else
+    #                         moment[i][l][j, j] += 2*coe1[i][j][r]*cos(2*pi*r*(l-1)/L)*mvar[Locb]
+    #                     end
     #                 end
     #             end
     #         end
-    #     end
-    #     for j1 = 1:k-1, j2 = j1+1:k, l = 1:Int(L/2) + 1
-    #         j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
-    #         for r = 1:L
-    #             if coe2[i][j][r] != 0
-    #                 Locb = bfind(tsupp, ltsupp, bi2[i][j][r])
-    #                 if i == 1 && l == 1
-    #                     moment[1][1][j1+1, j2+1] += coe2[1][j][r]*mvar[Locb]
-    #                 elseif l == 1 || l == Int(L/2) + 1
-    #                     moment[i][l][j1, j2] += coe2[i][j][r]*cos(2*pi*(r-1)*(l-1)/L)*mvar[Locb]
-    #                 else
-    #                     moment[i][l][j1, j2] += coe2[i][j][r]*(cos(2*pi*(r-1)*(l-1)/L)+sin(2*pi*(r-1)*(l-1)/L)*im)*mvar[Locb]
+    #         for j1 = 1:k-1, j2 = j1+1:k
+    #             j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
+    #             for r = 1:L
+    #                 if coe2[i][j][r] != 0
+    #                     Locb = bfind(tsupp, ltsupp, bi2[i][j][r])
+    #                     if i == 1 && l == 1
+    #                         moment[1][1][j1+1, j2+1] += coe2[1][j][r]*mvar[Locb]
+    #                     elseif l == 1 || l == Int(L/2) + 1
+    #                         moment[i][l][j1, j2] += coe2[i][j][r]*cos(2*pi*(r-1)*(l-1)/L)*mvar[Locb]
+    #                     else
+    #                          moment[i][l][j1, j2] += coe2[i][j][r]*(cos(2*pi*(r-1)*(l-1)/L)+sin(2*pi*(r-1)*(l-1)/L)*im)*mvar[Locb]
+    #                     end
     #                 end
     #             end
     #         end
-    #     end
-    #     for l = 1:Int(L/2) + 1
     #         moment[i][l] += moment[i][l]'
     #         moment[i][l] -= diagm(diag(moment[i][l]))/2
     #     end
     # end
-    return objv,cor0,cor1,cor2
+    data = qmb_data(cor0,cor1,cor2,basis,GramMat,moment)
+    return objv,data
 end
 
 function resort(Locb, coef)
@@ -708,7 +721,7 @@ function resort(Locb, coef)
 end
 
 function update!(coef, bis, bi, L; λ=1, lattice="chain")
-    bi,co = reduce!(bi, L=L, lattice=lattice)
+    bi,co = reduce!(bi, L=L, lattice=lattice, realify=true)
     if co != 0
         push!(coef, λ*co)
         push!(bis, bi)

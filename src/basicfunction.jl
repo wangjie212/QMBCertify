@@ -146,7 +146,7 @@ function reduce1!(a::Vector{UInt16})
 end
 
 # reduction to the normal form
-function reduce2!(a::Vector{UInt16})
+function reduce2!(a::Vector{UInt16}; realify=false)
     la = length(a)
     flag = 1
     coef = 1
@@ -174,7 +174,7 @@ function reduce2!(a::Vector{UInt16})
             flag = 0
         end
     end
-    if !isreal(coef)
+    if realify == true && !isreal(coef)
         coef = imag(coef)
     end
     return a,coef
@@ -238,10 +238,10 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
 end
 
 # implement all reductions
-function reduce!(a::Vector{UInt16}; L=0, lattice="chain")
+function reduce!(a::Vector{UInt16}; L=0, lattice="chain", realify=false)
     reduce1!(a)
     reduce3!(a)
-    a,coef = reduce2!(a)
+    a,coef = reduce2!(a, realify=realify)
     reduce3!(a)
     if isz(a)
         coef = 0
