@@ -1,5 +1,5 @@
-function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int; lso=true, lol=Int(L/2), pso=3, energy=[], QUIET=false, lattice="chain",
-    rdm=false, extra=0, three_type=[1;1], J2=0, correlation=false, Gram=false, mosek_setting=mosek_para())
+function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_supp=supp, H_coe=coe, SU2_symmetry=false, lso=true, lol=L, pso=3, energy=[], QUIET=false, lattice="chain",
+    rdm=false, extra=0, three_type=[1;1], J2=0, correlation=false, Gram=false, writetofile=false, mosek_setting=mosek_para())
     println("*********************************** QMBCertify ***********************************")
     println("QMBCertify is launching...")
     if QUIET == false
@@ -118,7 +118,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
             end
         end
         if pso > 0
-            h = [ceil(Int, item[2]/3) - 1 for item in supp]
+            h = [ceil(Int, item[2]/3) - 1 for item in H_supp]
             gb[i] = basis[i][length.(basis[i]) .<= pso]
             if lattice == "chain"
                 k = Int(length(gb[i])/L)
@@ -128,7 +128,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     coe3[i][j] = Vector{Vector{Float16}}(undef, Int(L/2)+1)
                     bi3[i][j] = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
                     for r = 1:Int(L/2)+1
-                        bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], h, coe, L, lattice=lattice)
+                        bi3[i][j][r], coe3[i][j][r] = PSDstate_entry(gb[i][L*(j-1)+1], gb[i][L*(j-1)+r], h, H_coe, L, lattice=lattice)
                     end
                 end
                 coe4[i] = Vector{Vector{Vector{Float16}}}(undef, Int(k*(k-1)/2))
@@ -138,7 +138,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     coe4[i][j] = Vector{Vector{Float16}}(undef, L)
                     bi4[i][j] = Vector{Vector{Vector{UInt16}}}(undef, L)
                     for r = 1:L
-                        bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], h, coe, L, lattice=lattice)
+                        bi4[i][j][r], coe4[i][j][r] = PSDstate_entry(gb[i][L*(j1-1)+1], gb[i][L*(j2-1)+r], h, H_coe, L, lattice=lattice)
                         append!(tsupp, bi4[i][j][r])
                     end        
                 end
@@ -151,14 +151,14 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                     ctemp = Vector{Vector{Float16}}(undef, Int(L/2)+1)
                     vtemp = Vector{Vector{Vector{UInt16}}}(undef, Int(L/2)+1)
                     for r = 1:Int(L/2)+1
-                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], h, coe, L, lattice=lattice)
+                        vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+r], h, H_coe, L, lattice=lattice)
                     end
                     sveig[ind], sceig[ind] = eigen_circmat(vtemp, ctemp, L, symmetry=true, real_matrix=true)
                     for q = 1:(k-j+1)*L - 1
                         ctemp = Vector{Vector{Float16}}(undef, L)
                         vtemp = Vector{Vector{Vector{UInt16}}}(undef, L)
                         for r = 1:L
-                            vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+q*L+r], h, coe, L, lattice=lattice)
+                            vtemp[r], ctemp[r] = PSDstate_entry(gb[i][L^2*(j-1)+1], gb[i][L^2*(j-1)+q*L+r], h, H_coe, L, lattice=lattice)
                         end
                         sveig[ind+q], sceig[ind+q] = eigen_circmat(vtemp, ctemp, L, real_matrix=true)
                     end
@@ -364,15 +364,18 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
         println("Finished block-diagonalization in $time seconds.")
         println("SDP size: n = $mb, m = $ltsupp")
     end
+    if SU2_symmetry == true
+        add_SU2_equality!(model, tsupp, ltsupp, cons, L=L, lattice=lattice)
+    end
     if lso == true
         if QUIET == false
             println("Adding linear state optimality constraints...")
         end
         time = @elapsed begin
-            h = [ceil(Int, item[2]/3) - 1 for item in supp]
+            h = [ceil(Int, item[2]/3) - 1 for item in H_supp]
             if lattice == "chain"
                 mons = generate_mons(L, lol, rdm-1)
-                mons = filter_mons(mons, tsupp, h, coe, L, lattice="chain")
+                mons = filter_mons(mons, tsupp, h, H_coe, L, lattice="chain")
                 for mon in mons
                     fr = @variable(model)
                     for (u, v) in enumerate(h), i = 1:L, j = 1:3
@@ -380,13 +383,13 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                         word,coef = reduce!(word, L=L, lattice="chain")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
+                            add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                     end
                 end
             else
                 mons = generate_mons(L^2, lol, 0)
-                mons = filter_mons(mons, tsupp, h, coe, L, lattice="square")
+                mons = filter_mons(mons, tsupp, h, H_coe, L, lattice="square")
                 for mon in mons
                     fr = @variable(model)
                     for (u, v) in enumerate(h), i = 1:L, w = 1:L, j = 1:3
@@ -394,13 +397,13 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
+                            add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                         word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+v, L=L)-1)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
                             Locb = bfind(tsupp, ltsupp, word)
-                            add_to_expression!(cons[Locb], coe[u]*imag(coef), fr)
+                            add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                     end
                 end
@@ -573,6 +576,9 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     end
     cons[1] += lower
     @constraint(model, con, cons==zeros(ltsupp))
+    if writetofile != false
+        write_to_file(dualize(model), writetofile)
+    end
     if QUIET == false
         println("Solving the SDP...")
     end
@@ -694,7 +700,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     #                     elseif l == 1 || l == Int(L/2) + 1
     #                         moment[i][l][j1, j2] += coe2[i][j][r]*cos(2*pi*(r-1)*(l-1)/L)*mvar[Locb]
     #                     else
-    #                          moment[i][l][j1, j2] += coe2[i][j][r]*(cos(2*pi*(r-1)*(l-1)/L)+sin(2*pi*(r-1)*(l-1)/L)*im)*mvar[Locb]
+    #                         moment[i][l][j1, j2] += coe2[i][j][r]*(cos(2*pi*(r-1)*(l-1)/L)+sin(2*pi*(r-1)*(l-1)/L)*im)*mvar[Locb]
     #                     end
     #                 end
     #             end
@@ -703,7 +709,7 @@ function GSB(supp::Vector{Vector{UInt16}}, coe::Vector{Float64}, L::Int, d::Int;
     #         moment[i][l] -= diagm(diag(moment[i][l]))/2
     #     end
     # end
-    data = qmb_data(cor0,cor1,cor2,basis,GramMat,moment)
+    data = qmb_data(cor0,cor1,cor2,basis,tsupp,GramMat,moment)
     return objv,data
 end
 

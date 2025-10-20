@@ -3,6 +3,7 @@ module QMBCertify
 using JuMP
 using MosekTools
 using LinearAlgebra
+using Dualization
 
 export GSB, slabel, reduce!, mosek_para
 
@@ -11,6 +12,7 @@ mutable struct qmb_data
     correlation2
     correlation3
     basis
+    tsupp
     GramMat
     moment
 end

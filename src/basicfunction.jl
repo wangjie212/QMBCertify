@@ -14,10 +14,13 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
         lb2 = 9
         if L >= 6
             lb2 = 12
-            push!(tb2, [2;-1], [1;-2], [2;-2], [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0])
+            push!(tb2, [2;-1], [1;-2], [2;-2], [0;3], [1;3], [2;3], [3;3], [3;2], [3;1], [3;0]) # 7
         end
         if L >= 8
-            push!(tb2, [3;-1], [3;-2], [3;-3], [2;-3], [1;-3], [0;4], [1;4], [2;4], [3;4], [4;4], [4;3], [4;2], [4;1], [4;0])
+            push!(tb2, [3;-1], [3;-2], [3;-3], [2;-3], [1;-3], [0;4], [1;4], [2;4], [3;4], [4;4], [4;3], [4;2], [4;1], [4;0]) # 21
+        end
+        if L >= 10
+            push!(tb2, [4;-1], [4;-2], [4;-3], [4;-4], [3;-4], [2;-4], [1;-4], [0;5], [1;5], [2;5], [3;5], [4;5], [5;5], [5;4], [5;3], [5;2], [5;1], [5;0]) # 39
         end
         tb3 = [[0;1;1;1], [0;1;-1;1], [1;0;1;1], [-1;0;-1;1], [1;0;2;0], [0;1;0;2]]
     end
@@ -43,8 +46,10 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
                     end
                 end
             end
-            for s = 0:extra, k in a1, i = 1:L
-                push!(basis, sort([3*(i-1)+k[1];smod(3*(i+s)+k[2], 3*L)]))
+            if d > 1
+                for s = 0:extra, k in a1, i = 1:L
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i+s)+k[2], 3*L)]))
+                end
             end
             if d > 3
                 for k in a2, i = 1:L
@@ -67,8 +72,10 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
                     end
                 end
             end
-            for k in a1, s in tb2[1:lb2+extra], i = 1:L, j = 1:L
-                push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
+            if d > 1
+                for k in a1, s in tb2[1:lb2+extra], i = 1:L, j = 1:L
+                    push!(basis, sort([3*(slabel(i, j, L=L)-1)+k[1];3*(slabel(i+s[1], j+s[2], L=L)-1)+k[2]]))
+                end
             end
             if d > 3
                 for k in a2, i = 1:L, j = 1:L
@@ -332,4 +339,88 @@ function eigen_circmat(supp, coe, L; symmetry=false, real_matrix=false)
         end
     end
     return seig, ceig
+end
+
+function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
+    ind = findall(item->length(item) == 4 && all(smod.(item, 3) .== 1), tsupp)
+    for item in tsupp[ind]
+        fr = @variable(model)
+        Locb = bfind(tsupp, ltsupp, item)
+        add_to_expression!(cons[Locb], fr)
+        for i = 2:4
+            a = copy(item)
+            a[1] += 1
+            a[i] += 1
+            a = reduce!(a, L=L, lattice=lattice)[1]
+            Locb = bfind(tsupp, ltsupp, a)
+            add_to_expression!(cons[Locb], -1, fr)
+        end
+    end
+    ind = findall(item->length(item) == 6 && sum(smod.(item, 3) .== 1) == 4, tsupp)
+    for item in tsupp[ind]
+        ino = Vector(1:6)[smod.(item, 3) .== 1]
+        fr = @variable(model)
+        Locb = bfind(tsupp, ltsupp, item)
+        add_to_expression!(cons[Locb], fr)
+        for i = 2:4
+            a = copy(item)
+            a[ino[1]] += 2
+            a[ino[i]] += 2
+            a = reduce!(a, L=L, lattice=lattice)[1]
+            Locb = bfind(tsupp, ltsupp, a)
+            add_to_expression!(cons[Locb], -1, fr)
+        end
+    end
+    ind = findall(item->length(item) == 6 && all(smod.(item, 3) .== 1), tsupp)
+    for item in tsupp[ind]
+        fr = @variable(model)
+        Locb = bfind(tsupp, ltsupp, item)
+        add_to_expression!(cons[Locb], fr)
+        for i = 2:6
+            ino = [Vector(2:i-1); Vector(i+1:6)]
+            for j = 2:4
+                ine = [Vector(2:j-1); Vector(j+1:4)]
+                a = copy(item)
+                a[ino[1]] += 1
+                a[ino[j]] += 1
+                a[ino[ine[1]]] += 2
+                a[ino[ine[2]]] += 2
+                a = reduce!(a, L=L, lattice=lattice)[1]
+                Locb = bfind(tsupp, ltsupp, a)
+                add_to_expression!(cons[Locb], -1, fr)
+            end
+        end
+    end
+    ind = findall(item->length(item) == 8 && sum(smod.(item, 3) .== 1) == 6, tsupp)
+    for item in tsupp[ind]
+        ino = Vector(1:8)[smod.(item, 3) .== 1]
+        for i = 1:6
+            fr = @variable(model)
+            Locb = bfind(tsupp, ltsupp, item)
+            add_to_expression!(cons[Locb], fr)
+            for j in [Vector(1:i-1); Vector(i+1:6)]
+                a = copy(item)
+                a[ino[i]] += 2
+                a[ino[j]] += 2
+                a = reduce!(a, L=L, lattice=lattice)[1]
+                Locb = bfind(tsupp, ltsupp, a)
+                add_to_expression!(cons[Locb], -1, fr)
+            end
+        end
+    end
+    ind = findall(item->length(item) == 8 && sum(smod.(item, 3) .== 1) == 4 && sum(smod.(item, 3) .== 2) == 4, tsupp)
+    for item in tsupp[ind]
+        ino = Vector(1:8)[smod.(item, 3) .== 2]
+        fr = @variable(model)
+        Locb = bfind(tsupp, ltsupp, item)
+        add_to_expression!(cons[Locb], fr)
+        for i in 2:4
+            a = copy(item)
+            a[ino[1]] += 1
+            a[ino[i]] += 1
+            a = reduce!(a, L=L, lattice=lattice)[1]
+            Locb = bfind(tsupp, ltsupp, a)
+            add_to_expression!(cons[Locb], -1, fr)
+        end
+    end
 end

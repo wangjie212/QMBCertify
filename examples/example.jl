@@ -1,42 +1,47 @@
 using QMBCertify
 
 # 1d Heisenberg model
-supp = Vector{UInt16}[[1;4]]
+supp = [[1;4]]
 coe = [3/4]
 N = 10 # number of spins
-@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=0, pso=2, lso=1, lol=N, extra=4, correlation=false, mosek_setting=mosek_para(1e-10, 1e-10, 1e-10, 0))
+r = 5
+@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=8, pso=0, lso=0, extra=r-1)
 
-N = 20 # number of spins
-@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=8, pso=0, extra=9, correlation=false)
 
 # 1d J1-J2 Heisenberg model
-N = 10 # number of sites
+N = 20 # number of sites
 J2 = 0.3
-supp = Vector{UInt16}[[1;4], [1;7]]
-coe = [3/4, 3/4*J2]
-r = 1
+supp = [[1;4], [1;7]]
+coe = [3/4; 3/4*J2]
+r = 10
 tt = [1;1]
-@time opt,data = GSB(supp, coe, N, 4, QUIET=true, rdm=0, pso=2, extra=r-1, three_type=tt, correlation=false)
+@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=0, lso=0, pso=0, extra=r-1, three_type=tt)
+# @time opt,data = GSB(supp, coe, N, 2, QUIET=false, rdm=0, lso=0, pso=2, extra=r-1, three_type=tt, writetofile="D:/Programs/QMBCertify/data/1dL4j1j2_0.3-2.dat-s")
 
 
 # 2d L×L Heisenberg model
 L = 4
-supp = [UInt16[1;4]]
+supp = [[1;4]]
 coe = [3/2]
-@time opt,data = GSB(supp, coe, L, 4, lattice="square", rdm=9, pso=3, lso=1, lol=L^2, extra=0, QUIET=false, correlation=false)
+@time opt,data = GSB(supp, coe, L, 4, lattice="square", rdm=0, pso=0, lso=0, extra=0, QUIET=false)
 
 
 # 2d L×L J1-J2 Heisenberg model
 L = 4
-supp = Vector{UInt16}[[1;4], [1;7]]
+supp = [[1;4], [1;7]]
+J2 = 0.3
 coe = [3/2, 3/2*J2]
-@time opt,data = GSB(supp, coe, L, 4, lattice="square", rdm=8, pso=3, extra=0, QUIET=false, correlation=false)
+@time opt,data = GSB(supp, coe, L, 4, lattice="square", rdm=0, pso=0, lso=0, extra=0, QUIET=false)
 
 
 # Ground state computation using DMRG
-using ITensors
+using ITensors, ITensorMPS
 # 1d Heisenberg model
-N = 10 # number of sites
+N = 40 # number of sites
+Js = [0.1, 0.2, 0.241167, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0]
+io = open("D:/Programs/QMBCertify/data/H1D2_40_1.txt", "w")
+for J2 in Js
+println("J2 = $J2")
 sites = siteinds("S=1/2", N)
 os = OpSum()
 for j = 1:N-1
@@ -44,43 +49,48 @@ for j = 1:N-1
   os += "Sy",j,"Sy",j+1
   os += "Sz",j,"Sz",j+1
 end
+for j = 1:N-2
+  os += J2,"Sx",j,"Sx",j+2
+  os += J2,"Sy",j,"Sy",j+2
+  os += J2,"Sz",j,"Sz",j+2
+end
 os += "Sx",1,"Sx",N
 os += "Sy",1,"Sy",N
 os += "Sz",1,"Sz",N
+os += J2,"Sx",1,"Sx",N-1
+os += J2,"Sy",1,"Sy",N-1
+os += J2,"Sz",1,"Sz",N-1
+os += J2,"Sx",2,"Sx",N
+os += J2,"Sy",2,"Sy",N
+os += J2,"Sz",2,"Sz",N
 H = MPO(os, sites)
-nsweeps = 5 # number of sweeps is 5
-maxdim = [10, 20, 100, 100, 200] # gradually increase states kept
+nsweeps = 6 # number of sweeps is 5
+maxdim = [10, 20, 100, 200, 400, 400] # gradually increase states kept
 cutoff = [1E-12] # desired truncation error
 psi0 = randomMPS(sites, 2)
 energy,psi = dmrg(H, psi0; nsweeps, maxdim, cutoff)
-
+energy = energy/N
 mo = OpSum()
-mo += "Sy",1,"Sz",3,"Sy",4,"Sz",5
-val = inner(psi', MPO(mo, sites), psi)
-@show val
-
-
-
-tsupp = [UInt16[]]
-for i = 0:3, j = 0:3, k = 0:3, l = 0:3
-  ind = [i,j,k,l]
-  if all(x->iseven(sum(ind .== x)), 1:3)
-    inx = ind .!= 0
-    bi = QMBCertify.reduce4(UInt16.(3*(Vector(1:4)[inx] .- 1) + ind[inx]), 100)
-    push!(tsupp, bi)
-  end
+mo += "Sx",1,"Sx",2
+c1 = real(inner(psi', MPO(mo, sites), psi))
+mo = OpSum()
+mo += "Sx",1,"Sx",3
+c2 = real(inner(psi', MPO(mo, sites), psi))
+write(io, "J2 = $J2, energy = $energy, C1 = $c1, C2 = $c2\n")
+write(io, "psi = $psi\n")
+write(io, "------------------------------------\n")
 end
-unique!(tsupp)
-sort!(tsupp)
-y = ceil.(Int, rand(length(tsupp))*1000)
-A = zeros(Int, 2^4, 2^4)
-Pauli = Matrix{Complex{Int8}}[[1 0; 0 1], [0 1; 1 0], [0 -im; im 0], [1 0; 0 -1]]
-for i = 0:3, j = 0:3, k = 0:3, l = 0:3
-  ind = [i,j,k,l]
-  if all(x->iseven(sum(ind .== x)), 1:3)
-    inx = ind .!= 0
-    bi = QMBCertify.reduce4(UInt16.(3*(Vector(1:4)[inx] .- 1) + ind[inx]), 100)
-    Locb = QMBCertify.bfind(tsupp, length(tsupp), bi)
-    A += y[Locb]*real(kron(Pauli[i+1], Pauli[j+1], Pauli[k+1], Pauli[l+1]))
-  end
+close(io)
+
+a = 0
+for i = 1:N-1
+  mo = OpSum()
+  mo += "Sx",1,"Sx",2,"Sx",i,"Sx",i+1
+  a += 3*(-1)^(1+i)*inner(psi', MPO(mo, sites), psi)
+  mo = OpSum()
+  mo += "Sx",1,"Sx",2,"Sy",i,"Sy",i+1
+  a += 6*(-1)^(1+i)*inner(psi', MPO(mo, sites), psi)
 end
+mo = OpSum()
+mo += "Sx",1,"Sx",3
+a += -3/4*inner(psi', MPO(mo, sites), psi)
