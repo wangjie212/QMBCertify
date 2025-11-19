@@ -14,8 +14,8 @@ J2 = 1.0
 supp = [[1;4], [1;7]]
 coe = [3/4; 3/4*J2]
 r = 10
-tt = [1;1]
-@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=10, pso=2, extra=r-1, three_type=tt)
+tt = [2;2]
+@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=0, pso=2, extra=r-1, three_type=tt)
 # @time opt,data = GSB(supp, coe, N, 2, QUIET=false, rdm=0, lso=0, pso=2, extra=r-1, three_type=tt, writetofile="D:/Programs/QMBCertify/data/1dL4j1j2_0.3-2.dat-s")
 
 
@@ -37,7 +37,7 @@ coe = [3/2, 3/2*J2]
 # Ground state computation using DMRG
 using ITensors, ITensorMPS
 # 1d Heisenberg model
-N = 20 # number of sites
+N = 40 # number of sites
 # Js = [0.1, 0.2, 0.241167, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.5, 2.0]
 # io = open("D:/Programs/QMBCertify/data/H1D2_100_2.txt", "w")
 # for J2 in Js

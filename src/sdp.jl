@@ -644,7 +644,9 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                 end
             end
         end
-        multiplier = value.(mul)
+        if energy != []
+            multiplier = value.(mul)
+        end
     end
     # moment = Vector{Vector{Union{Matrix{Float64},Matrix{ComplexF64}}}}(undef, 2)
     # for i = 1:2
