@@ -14,6 +14,7 @@ mutable struct qmb_data
     basis
     tsupp
     GramMat
+    multiplier
     moment
 end
 

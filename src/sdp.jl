@@ -546,23 +546,23 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     end
     obj = @variable(model, lower)
     if energy != []
-        pos = @variable(model, [1:2], lower_bound=0)
+        mul = @variable(model, [1:2], lower_bound=0)
         Locb = bfind(tsupp, ltsupp, [1;4])
         if lattice == "chain"
-            @inbounds add_to_expression!(cons[Locb], 3/4, pos[1]-pos[2])
+            @inbounds add_to_expression!(cons[Locb], 3/4, mul[1]-mul[2])
         else
-            @inbounds add_to_expression!(cons[Locb], 3/2, pos[1]-pos[2])
+            @inbounds add_to_expression!(cons[Locb], 3/2, mul[1]-mul[2])
         end
         if J2 != 0
             Locb = bfind(tsupp, ltsupp, [1;7])
             if lattice == "chain"
-                @inbounds add_to_expression!(cons[Locb], 3/4*J2, pos[1]-pos[2])
+                @inbounds add_to_expression!(cons[Locb], 3/4*J2, mul[1]-mul[2])
             else
-                @inbounds add_to_expression!(cons[Locb], 3/2*J2, pos[1]-pos[2])
+                @inbounds add_to_expression!(cons[Locb], 3/2*J2, mul[1]-mul[2])
             end
         end
-        obj += energy[1]*pos[1]
-        obj -= energy[2]*pos[2]
+        obj += energy[1]*mul[1]
+        obj -= energy[2]*mul[2]
     end
     @objective(model, Max, obj)
     for i = 1:length(supp)
@@ -596,7 +596,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
        println("solution status: $status")
     end
     println("optimum = $objv")
-    cor0 = cor1 = cor2 = GramMat = moment = nothing
+    cor0 = cor1 = cor2 = GramMat = multiplier = moment = nothing
     mvar = -dual(con) # extract moments
     if correlation == true
         if lattice == "chain"
@@ -644,6 +644,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                 end
             end
         end
+        multiplier = value.(mul)
     end
     # moment = Vector{Vector{Union{Matrix{Float64},Matrix{ComplexF64}}}}(undef, 2)
     # for i = 1:2
@@ -709,7 +710,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #         moment[i][l] -= diagm(diag(moment[i][l]))/2
     #     end
     # end
-    data = qmb_data(cor0,cor1,cor2,basis,tsupp,GramMat,moment)
+    data = qmb_data(cor0,cor1,cor2,basis,tsupp,GramMat,multiplier,moment)
     return objv,data
 end
 
