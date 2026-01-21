@@ -21,5 +21,6 @@ end
 include("basicfunction.jl")
 include("rdm_positivity.jl")
 include("sdp.jl")
+include("partition_function.jl")
 
 end
