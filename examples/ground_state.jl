@@ -8,16 +8,16 @@ r = 5
 @time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=8, pso=0, lso=0, extra=r-1)
 
 
-ub = -0.4865652
-lb = -0.5301715
-L = 40
+ub = -0.4872305
+lb = -0.4911407
+L = 20
 d = 4
-r = 1
+r = 10
 J2 = 1
 supp = [[1;4]]
 coe = [1/4]
-GSB(supp, coe, L, d, H_supp=[[1;4], [1;7]], H_coe=[3/4; 3/4*J2], energy=[lb, ub], J2=J2, QUIET=true, rdm=8, pso=3, extra=r-1, correlation=false)
-GSB(supp, -coe, L, d, H_supp=[[1;4], [1;7]], H_coe=[3/4; 3/4*J2], energy=[lb, ub], J2=J2, QUIET=true, rdm=8, pso=3, extra=r-1, correlation=false)
+GSB(supp, coe, L, d, H_supp=[[1;4], [1;7]], H_coe=[3/4; 3/4*J2], energy=[lb, ub], J2=J2, QUIET=true, rdm=9, pso=3, extra=r-1, correlation=false)
+GSB(supp, -coe, L, d, H_supp=[[1;4], [1;7]], H_coe=[3/4; 3/4*J2], energy=[lb, ub], J2=J2, QUIET=true, rdm=9, pso=3, extra=r-1, correlation=false)
 
 
 # 1d J1-J2 Heisenberg model
@@ -25,9 +25,9 @@ N = 20 # number of sites
 J2 = 1.0
 supp = [[1;4], [1;7]]
 coe = [3/4; 3/4*J2]
-r = 10
+r = 5
 tt = [1;1]
-@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=10, pso=3, extra=r-1, three_type=tt)
+@time opt,data = GSB(supp, coe, N, 4, QUIET=true, rdm=10, pso=3, extra=r-1, three_type=tt, correlation=true)
 # @time opt,data = GSB(supp, coe, N, 2, QUIET=false, rdm=0, lso=0, pso=2, extra=r-1, three_type=tt, writetofile="D:/Programs/QMBCertify/data/1dL4j1j2_0.3-2.dat-s")
 
 # 2d L×L Heisenberg model
@@ -108,6 +108,12 @@ for i = 1:N, j = 1:N
   a += 3*(-1)^(i+j)*inner(psi', MPO(mo, sites), psi)
 end
 println(real(a/N^2))
+end
+
+for i = 1:4
+mo = OpSum()
+mo += "Sx",i,"Sx",i+1
+println(real(inner(psi', MPO(mo, sites), psi)))
 end
 
 # a = 0.75

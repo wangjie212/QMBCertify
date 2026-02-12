@@ -124,17 +124,17 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
 end
 
 # binary search in a sorted sequence
-function bfind(A, l, a)
+function bfind(A, a)
     low = 1
-    high = l
+    high = length(A)
     while low <= high
-        mid = Int(ceil(1/2*(low+high)))
+        mid = ceil(Int, (low+high)/2)
         if A[mid] == a
            return mid
         elseif A[mid] < a
-            low = mid + 1
+           low = mid + 1
         else
-            high = mid - 1
+           high = mid - 1
         end
     end
     return nothing
@@ -345,18 +345,18 @@ function eigen_circmat(supp, coe, L; symmetry=false, real_matrix=false)
     return seig, ceig
 end
 
-function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
+function add_SU2_equality!(model, tsupp, cons; L=0, lattice="chain")
     ind = findall(item->length(item) == 4 && all(smod.(item, 3) .== 1), tsupp)
     for item in tsupp[ind]
         fr = @variable(model)
-        Locb = bfind(tsupp, ltsupp, item)
+        Locb = bfind(tsupp, item)
         add_to_expression!(cons[Locb], fr)
         for i = 2:4
             a = copy(item)
             a[1] += 1
             a[i] += 1
             a = reduce!(a, L=L, lattice=lattice)[1]
-            Locb = bfind(tsupp, ltsupp, a)
+            Locb = bfind(tsupp, a)
             add_to_expression!(cons[Locb], -1, fr)
         end
     end
@@ -364,21 +364,21 @@ function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
     for item in tsupp[ind]
         ino = Vector(1:6)[smod.(item, 3) .== 1]
         fr = @variable(model)
-        Locb = bfind(tsupp, ltsupp, item)
+        Locb = bfind(tsupp, item)
         add_to_expression!(cons[Locb], fr)
         for i = 2:4
             a = copy(item)
             a[ino[1]] += 2
             a[ino[i]] += 2
             a = reduce!(a, L=L, lattice=lattice)[1]
-            Locb = bfind(tsupp, ltsupp, a)
+            Locb = bfind(tsupp, a)
             add_to_expression!(cons[Locb], -1, fr)
         end
     end
     ind = findall(item->length(item) == 6 && all(smod.(item, 3) .== 1), tsupp)
     for item in tsupp[ind]
         fr = @variable(model)
-        Locb = bfind(tsupp, ltsupp, item)
+        Locb = bfind(tsupp, item)
         add_to_expression!(cons[Locb], fr)
         for i = 2:6
             ino = [Vector(2:i-1); Vector(i+1:6)]
@@ -390,7 +390,7 @@ function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
                 a[ino[ine[1]]] += 2
                 a[ino[ine[2]]] += 2
                 a = reduce!(a, L=L, lattice=lattice)[1]
-                Locb = bfind(tsupp, ltsupp, a)
+                Locb = bfind(tsupp, a)
                 add_to_expression!(cons[Locb], -1, fr)
             end
         end
@@ -400,14 +400,14 @@ function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
         ino = Vector(1:8)[smod.(item, 3) .== 1]
         for i = 1:6
             fr = @variable(model)
-            Locb = bfind(tsupp, ltsupp, item)
+            Locb = bfind(tsupp, item)
             add_to_expression!(cons[Locb], fr)
             for j in [Vector(1:i-1); Vector(i+1:6)]
                 a = copy(item)
                 a[ino[i]] += 2
                 a[ino[j]] += 2
                 a = reduce!(a, L=L, lattice=lattice)[1]
-                Locb = bfind(tsupp, ltsupp, a)
+                Locb = bfind(tsupp, a)
                 add_to_expression!(cons[Locb], -1, fr)
             end
         end
@@ -416,14 +416,14 @@ function add_SU2_equality!(model, tsupp, ltsupp, cons; L=0, lattice="chain")
     for item in tsupp[ind]
         ino = Vector(1:8)[smod.(item, 3) .== 2]
         fr = @variable(model)
-        Locb = bfind(tsupp, ltsupp, item)
+        Locb = bfind(tsupp, item)
         add_to_expression!(cons[Locb], fr)
         for i in 2:4
             a = copy(item)
             a[ino[1]] += 1
             a[ino[i]] += 1
             a = reduce!(a, L=L, lattice=lattice)[1]
-            Locb = bfind(tsupp, ltsupp, a)
+            Locb = bfind(tsupp, a)
             add_to_expression!(cons[Locb], -1, fr)
         end
     end

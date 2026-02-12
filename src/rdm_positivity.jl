@@ -7,7 +7,7 @@ function posepsd8!(model, cons, tsupp, L; lattice="chain")
         ind = [i,j,k,l,s,t,u,v]
         if all(x->iseven(sum(ind .== x)), 1:3)
             inx = ind .!= 0
-            Locb = bfind(tsupp, ltsupp, reduce4(UInt16.(3*(Vector(1:8)[inx] .- 1) + ind[inx]), L, lattice=lattice))
+            Locb = bfind(tsupp, reduce4(UInt16.(3*(Vector(1:8)[inx] .- 1) + ind[inx]), L, lattice=lattice))
             tp = real(kron(Pauli[ind.+1]...))
             for (p, block) in enumerate(blocks)
                 @inbounds add_to_expression!(cons[Locb], sum(tp[block, block].*pos[p]))
@@ -25,7 +25,7 @@ function posepsd9!(model, cons, tsupp, L; lattice="chain")
         ind = [i,j,k,l,s,t,u,v,w]
         if all(x->iseven(sum(ind .== x)), 1:3)
             inx = ind .!= 0
-            Locb = bfind(tsupp, ltsupp, reduce4(UInt16.(3*(Vector(1:9)[inx] .- 1) + ind[inx]), L, lattice=lattice))
+            Locb = bfind(tsupp, reduce4(UInt16.(3*(Vector(1:9)[inx] .- 1) + ind[inx]), L, lattice=lattice))
             tp = real(kron(Pauli[ind.+1]...))
             for (p, block) in enumerate(blocks)
                 @inbounds add_to_expression!(cons[Locb], sum(tp[block, block].*pos[p]))
@@ -43,7 +43,7 @@ function posepsd10!(model, cons, tsupp, L; lattice="chain")
         ind = [i,j,k,l,s,t,u,v,w,z]
         if all(x->iseven(sum(ind .== x)), 1:3)
             inx = ind .!= 0
-            Locb = bfind(tsupp, ltsupp, reduce4(UInt16.(3*(Vector(1:10)[inx] .- 1) + ind[inx]), L, lattice=lattice))
+            Locb = bfind(tsupp, reduce4(UInt16.(3*(Vector(1:10)[inx] .- 1) + ind[inx]), L, lattice=lattice))
             tp = real(kron(Pauli[ind.+1]...))
             for (p, block) in enumerate(blocks)
                 @inbounds add_to_expression!(cons[Locb], sum(tp[block, block].*pos[p]))

@@ -217,7 +217,6 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     end
     sort!(tsupp)
     unique!(tsupp)
-    ltsupp = length(tsupp)
     end
     if QUIET == false
         println("Obtained the monomial basis in $time seconds.")
@@ -227,7 +226,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     model = Model(optimizer_with_attributes(Mosek.Optimizer, "MSK_DPAR_INTPNT_CO_TOL_PFEAS" => mosek_setting.tol_pfeas, "MSK_DPAR_INTPNT_CO_TOL_DFEAS" => mosek_setting.tol_dfeas, 
         "MSK_DPAR_INTPNT_CO_TOL_REL_GAP" => mosek_setting.tol_relgap, "MSK_IPAR_NUM_THREADS" => mosek_setting.num_threads))
     set_optimizer_attribute(model, MOI.Silent(), QUIET)
-    cons = [AffExpr(0) for i=1:ltsupp]
+    cons = [AffExpr(0) for i=1:length(tsupp)]
     mb = 0
     gram = Vector{Vector{Symmetric{VariableRef}}}(undef, 2)
     for i = 1:2
@@ -242,7 +241,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     for j = 1:k
                         bi,coef = reduce!(basis[1][L*(j-1)+1], L=L, lattice=lattice)
                         if coef != 0
-                            Locb = bfind(tsupp, ltsupp, bi)
+                            Locb = bfind(tsupp, bi)
                             @inbounds add_to_expression!(cons[Locb], 2*sqrt(L), gram[i][1][1,j+1])
                         end
                     end
@@ -261,12 +260,12 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     end
                     @inbounds add_to_expression!(cons[1], pp)
                     if coe1[i][j][end] != 0
-                        Locb = bfind(tsupp, ltsupp, bi1[i][j][end])
+                        Locb = bfind(tsupp, bi1[i][j][end])
                         @inbounds add_to_expression!(cons[Locb], coe1[i][j][end]*(-1)^(l-1), pp)
                     end
                     for r = 1:Int(L/2)-1
                         if coe1[i][j][r] != 0
-                            Locb = bfind(tsupp, ltsupp, bi1[i][j][r])
+                            Locb = bfind(tsupp, bi1[i][j][r])
                             @inbounds add_to_expression!(cons[Locb], 2*coe1[i][j][r]*cos(2*pi*r*(l-1)/L), pp)
                         end
                     end
@@ -283,11 +282,11 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
                     for r = 1:L
                         if coe2[i][j][r] != 0
-                            Locb = bfind(tsupp, ltsupp, bi2[i][j][r])
+                            Locb = bfind(tsupp, bi2[i][j][r])
                             @inbounds add_to_expression!(cons[Locb], 2*coe2[i][j][r]*cos(2*pi*(r-1)*(l-1)/L), pp1)
-                            if l != 1 && l != Int(L/2) + 1
-                                @inbounds add_to_expression!(cons[Locb], -2*coe2[i][j][r]*sin(2*pi*(r-1)*(l-1)/L), pp2)
-                            end
+                            # if l != 1 && l != Int(L/2) + 1
+                            #     @inbounds add_to_expression!(cons[Locb], -2*coe2[i][j][r]*sin(2*pi*(r-1)*(l-1)/L), pp2)
+                            # end
                         end
                     end
                 end
@@ -307,7 +306,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     for j = 1:k
                         bi,coef = reduce!(basis[1][L^2*(j-1)+1], L=L, lattice=lattice)
                         if coef != 0
-                            Locb = bfind(tsupp, ltsupp, bi)
+                            Locb = bfind(tsupp, bi)
                             @inbounds add_to_expression!(cons[Locb], 2*L, npos[1,1][1,j+1])
                         end
                     end
@@ -323,7 +322,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     pp1 = pos[l, u][j1, j2] + pos[l, u][j1+k, j2+k]
                     pp2 = pos[l, u][j1+k, j2] - pos[l, u][j2+k, j1]
                     for (s,c) in enumerate(ceig1[i][ind+l][u])
-                        Locb = bfind(tsupp, ltsupp, veig1[i][ind+l][u][s])
+                        Locb = bfind(tsupp, veig1[i][ind+l][u][s])
                         if j1 == j2
                             @inbounds add_to_expression!(cons[Locb], real(c), pp1)
                         else
@@ -345,7 +344,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                         pp2 = npos[l, u][j1+k, j2] - npos[l, u][j2+k, j1]
                     end
                     for (s,c) in enumerate(nceig1[i][ind+l][u])
-                        Locb = bfind(tsupp, ltsupp, nveig1[i][ind+l][u][s])
+                        Locb = bfind(tsupp, nveig1[i][ind+l][u][s])
                         if j1 == j2
                             @inbounds add_to_expression!(cons[Locb], real(c), pp1)
                         else
@@ -362,10 +361,10 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     end
     if QUIET == false
         println("Finished block-diagonalization in $time seconds.")
-        println("SDP size: n = $mb, m = $ltsupp")
+        println("SDP size: n = $mb, m = $(length(tsupp))")
     end
     if SU2_symmetry == true
-        add_SU2_equality!(model, tsupp, ltsupp, cons, L=L, lattice=lattice)
+        add_SU2_equality!(model, tsupp, cons, L=L, lattice=lattice)
     end
     if lso == true
         if QUIET == false
@@ -382,7 +381,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                         word = UInt16[3*(i-1)+j; 3*mod(i-1+v, L)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="chain")
                         if imag(coef) != 0
-                            Locb = bfind(tsupp, ltsupp, word)
+                            Locb = bfind(tsupp, word)
                             add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                     end
@@ -396,13 +395,13 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                         word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+v, w, L=L)-1)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
-                            Locb = bfind(tsupp, ltsupp, word)
+                            Locb = bfind(tsupp, word)
                             add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                         word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+v, L=L)-1)+j; mon]
                         word,coef = reduce!(word, L=L, lattice="square")
                         if imag(coef) != 0
-                            Locb = bfind(tsupp, ltsupp, word)
+                            Locb = bfind(tsupp, word)
                             add_to_expression!(cons[Locb], H_coe[u]*imag(coef), fr)
                         end
                     end
@@ -435,15 +434,15 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                                 pp = pos[l][j, j] + pos[l][j+k, j+k]
                             end
                             for s = 1:length(coe3[i][j][1])
-                                Locb = bfind(tsupp, ltsupp, bi3[i][j][1][s])
+                                Locb = bfind(tsupp, bi3[i][j][1][s])
                                 @inbounds add_to_expression!(cons[Locb], coe3[i][j][1][s], pp)
                             end
                             for r = 1:Int(L/2)-1, s = 1:length(coe3[i][j][r+1])
-                                Locb = bfind(tsupp, ltsupp, bi3[i][j][r+1][s])
+                                Locb = bfind(tsupp, bi3[i][j][r+1][s])
                                 @inbounds add_to_expression!(cons[Locb], 2*coe3[i][j][r+1][s]*cos(2*pi*r*(l-1)/L), pp)
                             end
                             for s = 1:length(coe3[i][j][end])
-                                Locb = bfind(tsupp, ltsupp, bi3[i][j][end][s])
+                                Locb = bfind(tsupp, bi3[i][j][end][s])
                                 @inbounds add_to_expression!(cons[Locb], coe3[i][j][end][s]*(-1)^(l-1), pp)
                             end
                         end
@@ -456,7 +455,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                             end
                             j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
                             for r = 1:L, s = 1:length(coe4[i][j][r])
-                                Locb = bfind(tsupp, ltsupp, bi4[i][j][r][s])
+                                Locb = bfind(tsupp, bi4[i][j][r][s])
                                 if coe4[i][j][r][s] != 0
                                     @inbounds add_to_expression!(cons[Locb], 2*coe4[i][j][r][s]*cos(2*pi*(r-1)*(l-1)/L), pp1)
                                     if l != 1 && l != Int(L/2)+1
@@ -488,7 +487,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                             pp1 = pos[l, u][j1, j2] + pos[l, u][j1+k, j2+k]
                             pp2 = pos[l, u][j1+k, j2] - pos[l, u][j2+k, j1]
                             for (s,c) in enumerate(ceig2[i][ind+l][u])
-                                Locb = bfind(tsupp, ltsupp, veig2[i][ind+l][u][s])
+                                Locb = bfind(tsupp, veig2[i][ind+l][u][s])
                                 if j1 == j2
                                     @inbounds add_to_expression!(cons[Locb], real(c), pp1)
                                 else
@@ -508,7 +507,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                                 pp2 = npos[l, u][j1+k, j2] - npos[l, u][j2+k, j1]
                             end
                             for (s,c) in enumerate(nceig2[i][ind+l][u])
-                                Locb = bfind(tsupp, ltsupp, nveig2[i][ind+l][u][s])
+                                Locb = bfind(tsupp, nveig2[i][ind+l][u][s])
                                 if j1 == j2
                                     @inbounds add_to_expression!(cons[Locb], real(c), pp1)
                                 else
@@ -547,14 +546,14 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     obj = @variable(model, lower)
     if energy != []
         mul = @variable(model, [1:2], lower_bound=0)
-        Locb = bfind(tsupp, ltsupp, [1;4])
+        Locb = bfind(tsupp, [1;4])
         if lattice == "chain"
             @inbounds add_to_expression!(cons[Locb], 3/4, mul[1]-mul[2])
         else
             @inbounds add_to_expression!(cons[Locb], 3/2, mul[1]-mul[2])
         end
         if J2 != 0
-            Locb = bfind(tsupp, ltsupp, [1;7])
+            Locb = bfind(tsupp, [1;7])
             if lattice == "chain"
                 @inbounds add_to_expression!(cons[Locb], 3/4*J2, mul[1]-mul[2])
             else
@@ -566,7 +565,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     end
     @objective(model, Max, obj)
     for i = 1:length(supp)
-        Locb = bfind(tsupp, ltsupp, supp[i])
+        Locb = bfind(tsupp, supp[i])
         if Locb === nothing
            @error "The monomial basis is not enough!"
            return nothing,nothing,nothing,nothing
@@ -575,7 +574,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
         end
     end
     cons[1] += lower
-    @constraint(model, con, cons==zeros(ltsupp))
+    @constraint(model, con, cons==zeros(length(tsupp)))
     if writetofile != false
         write_to_file(dualize(model), writetofile)
     end
@@ -603,21 +602,21 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
             cor0 = zeros(Int(L/2))
             for i = 1:Int(L/2)
                 word = UInt16[1; 3*i+1]
-                Locb = bfind(tsupp, ltsupp, word)
+                Locb = bfind(tsupp, word)
                 cor0[i] = mvar[Locb]
             end
             cor1 = zeros(Int(L/2-2))
             for i = 3:Int(L/2)
                 word = UInt16[1; 4; 3*(i-1)+1; 3*i+1]
                 word = reduce!(word, L=L, lattice=lattice)[1]
-                Locb = bfind(tsupp, ltsupp, word)
+                Locb = bfind(tsupp, word)
                 cor1[i-2] = mvar[Locb]
             end
             cor2 = zeros(Int(L/2-2))
             for i = 3:Int(L/2)
                 word = UInt16[1; 4; 3*i; 3*i+3]
                 word = reduce!(word, L=L, lattice=lattice)[1]
-                Locb = bfind(tsupp, ltsupp, word)
+                Locb = bfind(tsupp, word)
                 cor2[i-2] = mvar[Locb]
             end
         else
@@ -625,7 +624,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
             for i = 1:L, j = 1:L
                 word = UInt16[1; 3*(slabel(i, j, L=L)-1)+1]
                 word = reduce!(word, L=L, lattice=lattice)[1]
-                Locb = bfind(tsupp, ltsupp, word)
+                Locb = bfind(tsupp, word)
                 cor0[i,j] = mvar[Locb]
             end
         end
@@ -659,7 +658,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #             for j = 1:k
     #                 bi,coef = reduce!(basis[1][L*(j-1)+1], L=L, lattice=lattice)
     #                 if coef != 0
-    #                     Locb = bfind(tsupp, ltsupp, bi)
+    #                     Locb = bfind(tsupp, bi)
     #                     moment[1][1][1,j+1] += sqrt(L)*mvar[Locb]
     #                 end
     #             end
@@ -675,7 +674,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #                 moment[i][l][j, j] += mvar[1]
     #             end
     #             if coe1[i][j][end] != 0
-    #                 Locb = bfind(tsupp, ltsupp, bi1[i][j][end])
+    #                 Locb = bfind(tsupp, bi1[i][j][end])
     #                 if i == 1 && l == 1
     #                     moment[1][1][j+1, j+1] += coe1[1][j][end]*mvar[Locb]
     #                 else
@@ -684,7 +683,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #             end
     #             for r = 1:Int(L/2)-1
     #                 if coe1[i][j][r] != 0
-    #                     Locb = bfind(tsupp, ltsupp, bi1[i][j][r])
+    #                     Locb = bfind(tsupp, bi1[i][j][r])
     #                     if i == 1 && l == 1
     #                         moment[1][1][j+1, j+1] += 2*coe1[1][j][r]*mvar[Locb]
     #                     else
@@ -697,7 +696,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #             j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
     #             for r = 1:L
     #                 if coe2[i][j][r] != 0
-    #                     Locb = bfind(tsupp, ltsupp, bi2[i][j][r])
+    #                     Locb = bfind(tsupp, bi2[i][j][r])
     #                     if i == 1 && l == 1
     #                         moment[1][1][j1+1, j2+1] += coe2[1][j][r]*mvar[Locb]
     #                     elseif l == 1 || l == Int(L/2) + 1
@@ -716,13 +715,13 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     return objv,data
 end
 
-function resort(Locb, coef)
+function arrange(Locb, coef)
     nLocb = copy(Locb)
     sort!(nLocb)
     unique!(nLocb)
     ncoef = zeros(typeof(coef[1]), length(nLocb))
-    for i = 1:length(Locb)
-        ind = bfind(nLocb, length(nLocb), Locb[i])
+    for (i, item) in enumerate(Locb)
+        ind = bfind(nLocb, item)
         ncoef[ind] += coef[i]
     end
     ind = ncoef .!= 0
@@ -764,7 +763,7 @@ function PSDstate_entry(ba1, ba2, h, c, L; lattice="chain")
         end
     end
     if !isempty(coef)
-        bis, coef = resort(bis, coef)
+        bis, coef = arrange(bis, coef)
     end
     return bis, coef
 end
@@ -800,9 +799,8 @@ function generate_mons(N, b1, b2)
 end
 
 function filter_mons(mons, tsupp, h, c, L; lattice="chain")
-    ltsupp = length(tsupp)
     lc = zeros(Float64, length(mons))
-    rd = ceil.(Int, rand(ltsupp)*10^8)
+    rd = ceil.(Int, rand(length(tsupp))*10^8)
     if lattice == "chain"
         for (k, mon) in enumerate(mons)
             flag = 1
@@ -810,7 +808,7 @@ function filter_mons(mons, tsupp, h, c, L; lattice="chain")
                 word = UInt16[3*(i-1)+j; 3*mod(i-1+v, L)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="chain")
                 if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
+                    Locb = bfind(tsupp, word)
                     if Locb === nothing
                         flag = 0
                         break
@@ -829,7 +827,7 @@ function filter_mons(mons, tsupp, h, c, L; lattice="chain")
                 word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i+v, w, L=L)-1)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="square")
                 if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
+                    Locb = bfind(tsupp, word)
                     if Locb === nothing
                         flag = 0
                         break
@@ -839,7 +837,7 @@ function filter_mons(mons, tsupp, h, c, L; lattice="chain")
                 word = UInt16[3*(slabel(i, w, L=L)-1)+j; 3*(slabel(i, w+v, L=L)-1)+j; mon]
                 word,coef = reduce!(word, L=L, lattice="square")
                 if imag(coef) != 0
-                    Locb = bfind(tsupp, ltsupp, word)
+                    Locb = bfind(tsupp, word)
                     if Locb === nothing
                         flag = 0
                         break
@@ -858,16 +856,16 @@ end
 
 function count_reduce(i, s, t, ba, L)
     loc = ceil.(UInt16, ba/3)
-    u = bfind(loc, length(loc), i)
-    v = bfind(loc, length(loc), smod(i+t, L))
+    u = bfind(loc, i)
+    v = bfind(loc, smod(i+t, L))
     return (u !== nothing && mod(ba[u], 3) != mod(s, 3)) + (v !== nothing && mod(ba[v], 3) != mod(s, 3)) == 1
 end
 
 function count_reduce(i, j, s, t, ba, L)
     loc = ceil.(UInt16, ba/3)
-    u = bfind(loc, length(loc), slabel(i, j, L=L))
-    v = bfind(loc, length(loc), slabel(i+t, j, L=L))
-    w = bfind(loc, length(loc), slabel(i, j+t, L=L))
+    u = bfind(loc, slabel(i, j, L=L))
+    v = bfind(loc, slabel(i+t, j, L=L))
+    w = bfind(loc, slabel(i, j+t, L=L))
     a = u !== nothing && mod(ba[u], 3) != mod(s, 3)
     b = v !== nothing && mod(ba[v], 3) != mod(s, 3)
     c = w !== nothing && mod(ba[w], 3) != mod(s, 3)

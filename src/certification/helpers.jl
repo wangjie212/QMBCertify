@@ -11,13 +11,13 @@ end
 
 function var_from_array(var, arr)
     result = DynamicPolynomials.Monomial(var, zeros(Int, length(var)))
-    if(length(arr) == 0)
+    if length(arr) == 0
         return result
     end
-    for i in 1:length(arr)
-        result*=var[arr[i]]
+    for i in arr
+        result *= var[i]
     end
-return result
+    return result
 end
 
 function rationalize_poly(p::DynamicPolynomials.Polynomial; tol::Real = 1e-20)
@@ -167,7 +167,7 @@ function build_rhs_and_N_rat(
     @inline function loc_cached(w_nf::Vector{UInt16})
         key = tk(w_nf)
         get!(loc_cache, key) do
-            loc = QMBCertify.bfind(tsupp, length(tsupp), w_nf)
+            loc = bfind(tsupp, w_nf)
             (loc === nothing ? 0 : loc)
         end
     end
@@ -187,7 +187,7 @@ function build_rhs_and_N_rat(
             w_nf, c_nf = QMBCertify.reduce!([wi; wk]; L = Nsites, realify = true)
             c_nf == 0 && return (0, 0//1)
 
-            loc = QMBCertify.bfind(tsupp, length(tsupp), w_nf)
+            loc = bfind(tsupp, w_nf)
             (loc === nothing || loc == 0) && return (0, 0//1)
 
             c_rat = Rat(rationalize(real(c_nf); tol = tol_dft))
@@ -251,7 +251,7 @@ function build_rhs_and_N_rat(
     g00 = G11[1,1]
     g00_re = getfield(g00, :re)
 
-    empty_idx = QMBCertify.bfind(tsupp, length(tsupp), UInt16[])
+    empty_idx = bfind(tsupp, UInt16[])
     @assert empty_idx !== nothing && empty_idx != 0 "empty word not in tsupp"
     t_empty = empty_idx
 
@@ -356,7 +356,7 @@ function coeff_vector_LHS_tsupp_rat(LHS_poly_rat::DynamicPolynomials.Polynomial,
     @inline function loc_cached(wnf)
         key = tk(wnf)
         get!(loc_cache, key) do
-            loc = QMBCertify.bfind(tsupp, length(tsupp), wnf)
+            loc = bfind(tsupp, wnf)
             (loc === nothing ? 0 : loc)
         end
     end
@@ -402,7 +402,7 @@ function project_blocks_frob!(
     end
     println("Time to solve N Delta = r in rationals: $(t_Ninv) seconds")
 
-    empty_idx = QMBCertify.bfind(tsupp, length(tsupp), UInt16[])
+    empty_idx = bfind(tsupp, UInt16[])
     @assert empty_idx !== nothing && empty_idx != 0
     t_empty = empty_idx
 
@@ -424,7 +424,7 @@ function project_blocks_frob!(
         w_nf, c_nf = QMBCertify.reduce!(wi; L = Nsites)
         c_nf == 0 && continue
 
-        loc = QMBCertify.bfind(tsupp, length(tsupp), w_nf)
+        loc = bfind(tsupp, w_nf)
         (loc === nothing || loc == 0) && continue
 
         Deltat = Delta[loc]
@@ -517,7 +517,7 @@ function apply_A_to_grams_rat(
     sqrtN = sqrtN_rat(Nsites; tol_dft = tol_dft)
 
     # empty word index
-    empty_idx = QMBCertify.bfind(tsupp, length(tsupp), UInt16[])
+    empty_idx = bfind(tsupp, UInt16[])
     @assert empty_idx !== nothing && empty_idx != 0
     t_empty = empty_idx
 
@@ -530,7 +530,7 @@ function apply_A_to_grams_rat(
         wi = data.basis[1][Nsites*(k-1) + 1]
         w_nf, c_nf = QMBCertify.reduce!(wi; L = Nsites)
         c_nf == 0 && continue
-        loc = QMBCertify.bfind(tsupp, length(tsupp), w_nf)
+        loc = bfind(tsupp, w_nf)
         (loc === nothing || loc == 0) && continue
 
         g = G1_blocks[1][1, k+1]

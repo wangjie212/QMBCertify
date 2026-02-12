@@ -19,7 +19,7 @@ function build_LHS_corr_rat(data_corr, N;
         QMBCertify.reduce!(w; L = N, realify = true)
     end
 
-    const_idx = QMBCertify.bfind(tsupp, T, UInt16[])
+    const_idx = bfind(tsupp, UInt16[])
     const_idx === nothing && error("Constant word [] not found in tsupp")
 
     @assert length(obj_supp) == length(obj_coe_rat)
@@ -28,7 +28,7 @@ function build_LHS_corr_rat(data_corr, N;
         w_nf, c_nf = reduce_word(w_u16)
         abs(imag(c_nf)) > 1e-10 &&
             error("Unexpected imaginary coefficient in objective reduction")
-        loc = QMBCertify.bfind(tsupp, T, w_nf)
+        loc = bfind(tsupp, w_nf)
         loc === nothing && continue
         r_nf = Rational{BigInt}(rationalize(real(c_nf); tol = tol_mult))
         LHS[loc] += c_rat * r_nf
@@ -47,7 +47,7 @@ function build_LHS_corr_rat(data_corr, N;
         w_nf, c_nf = reduce_word(w_u16)
         abs(imag(c_nf)) > 1e-10 &&
             error("Unexpected imaginary coefficient in H reduction")
-        loc = QMBCertify.bfind(tsupp, T, w_nf)
+        loc = bfind(tsupp, w_nf)
         loc === nothing && continue
         r_nf = Rational{BigInt}(rationalize(real(c_nf); tol = tol_mult))
         E_vec[loc] += cH_rat * r_nf
@@ -217,14 +217,14 @@ function certify_qmb_corr(
         eigminsg1 = Vector{Float64}()
         eigminsg2 = Vector{Float64}()
 
-        @inbounds for i in 1:length(G1_blocks)
-            Gproj = ComplexF64.(G1_blocks[i])
+        @inbounds for block in G1_blocks
+            Gproj = ComplexF64.(block)
             λ_proj = rigorous_min_eig(Hermitian(Gproj); prec = eig_prec)
             push!(eigminsg1, Float64(λ_proj))
         end
 
-        @inbounds for i in 1:length(G2_blocks)
-            Gproj = ComplexF64.(G2_blocks[i])
+        @inbounds for block in G2_blocks
+            Gproj = ComplexF64.(block)
             λ_proj = rigorous_min_eig(Hermitian(Gproj); prec = eig_prec)
             push!(eigminsg2, Float64(λ_proj))
         end
