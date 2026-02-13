@@ -284,9 +284,9 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                         if coe2[i][j][r] != 0
                             Locb = bfind(tsupp, bi2[i][j][r])
                             @inbounds add_to_expression!(cons[Locb], 2*coe2[i][j][r]*cos(2*pi*(r-1)*(l-1)/L), pp1)
-                            # if l != 1 && l != Int(L/2) + 1
-                            #     @inbounds add_to_expression!(cons[Locb], -2*coe2[i][j][r]*sin(2*pi*(r-1)*(l-1)/L), pp2)
-                            # end
+                            if l != 1 && l != Int(L/2) + 1
+                                @inbounds add_to_expression!(cons[Locb], -2*coe2[i][j][r]*sin(2*pi*(r-1)*(l-1)/L), pp2)
+                            end
                         end
                     end
                 end

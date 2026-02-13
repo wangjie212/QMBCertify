@@ -40,24 +40,24 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
             end
             if d > 2
                 for i = 1:L
-                    push!(basis, sort([3*(i-1)+label;smod(3*(i-1+three_type[1])+label, 3*L);smod(3*(i-1+sum(three_type))+label, 3*L)]))
+                    push!(basis, sort([3*(i-1)+label;smod(3*(i-1+three_type[1])+label, 3L);smod(3*(i-1+sum(three_type))+label, 3L)]))
                 end
                 for l = 1:2, k = 1:3
                     ind = rot(label)[l]*ones(Int, 3)
                     ind[k] = label
                     for i = 1:L
-                        push!(basis, sort([3*(i-1)+ind[1];smod(3*(i-1+three_type[1])+ind[2], 3*L);smod(3*(i-1+sum(three_type))+ind[3], 3*L)]))
+                        push!(basis, sort([3*(i-1)+ind[1];smod(3*(i-1+three_type[1])+ind[2], 3L);smod(3*(i-1+sum(three_type))+ind[3], 3L)]))
                     end
                 end
             end
             if d > 1
                 for s = 0:extra, k in a1, i = 1:L
-                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i+s)+k[2], 3*L)]))
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i+s)+k[2], 3L)]))
                 end
             end
             if d > 3
                 for k in a2, i = 1:L
-                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3L);smod(3*(i+1)+k[3], 3L);smod(3*(i+2)+k[4], 3L)]))
                 end
             end
         else
@@ -92,16 +92,16 @@ function get_basis(L, label, d; lattice="chain", extra=0, three_type=[1;1])
         a2 = [[1;1;1;1], [2;2;2;2], [3;3;3;3], [1;2;2;1], [2;1;1;2], [1;3;3;1], [3;1;1;3], [3;2;2;3], [2;3;3;2], [1;1;2;2], [2;2;1;1], [1;2;1;2], [2;1;2;1], [1;1;3;3], [3;3;1;1], [1;3;1;3], [3;1;3;1], [3;3;2;2], [2;2;3;3], [3;2;3;2], [2;3;2;3]]
         if lattice == "chain"
             for s = 0:extra, k = 1:3, i = 1:L
-                push!(basis, sort([3*(i-1)+k;smod(3*(i+s)+k, 3*L)]))
+                push!(basis, sort([3*(i-1)+k;smod(3*(i+s)+k, 3L)]))
             end
             if d > 3
                 for k in a2, i = 1:L
-                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3*L);smod(3*(i+1)+k[3], 3*L);smod(3*(i+2)+k[4], 3*L)]))
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*i+k[2], 3L);smod(3*(i+1)+k[3], 3L);smod(3*(i+2)+k[4], 3L)]))
                 end
             end
             if d > 2
                 for k in a1, i = 1:L
-                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i-1+three_type[1])+k[2], 3*L);smod(3*(i-1+sum(three_type))+k[3], 3*L)]))
+                    push!(basis, sort([3*(i-1)+k[1];smod(3*(i-1+three_type[1])+k[2], 3L);smod(3*(i-1+sum(three_type))+k[3], 3L)]))
                 end
             end
         else
@@ -217,7 +217,7 @@ function reduce4(a::Vector{UInt16}, L; lattice="chain")
         pa = Vector{UInt16}[]
         if lattice == "chain"
             for i = 1:l
-                ta = [a[i:end]; a[1:i-1] .+ 3*L] .- 3*(ceil(UInt16, a[i]/3) - 1)
+                ta = [a[i:end]; a[1:i-1] .+ 3L] .- 3*(ceil(UInt16, a[i]/3) - 1)
                 append!(pa, perm(ta))
                 rta = reverse(ta)
                 ma = 3*(ceil(UInt16, ta[end]/3) .- ceil.(UInt16, rta/3)) + smod.(rta, 3)

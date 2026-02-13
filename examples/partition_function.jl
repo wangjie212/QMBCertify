@@ -3,7 +3,7 @@ using QMBCertify
 # 1d Heisenberg model
 supp = [[1;4]]
 coe = [3/4]
-N = 4 # number of spins
+N = 2 # number of spins
 beta = 0.1
 @time opt,tsupp = PFB(supp, coe, beta, N, 2, QUIET=false)
 println(2^N*opt)
