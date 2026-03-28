@@ -3,9 +3,9 @@ using QMBCertify
 # 1d Heisenberg model
 supp = [[1;4]]
 coe = [3/4]
-N = 2 # number of spins
+N = 10 # number of spins
 beta = 0.1
-@time opt,tsupp = PFB(supp, coe, beta, N, 2, QUIET=false)
+@time opt = PFB(supp, coe, beta, N, 3, QUIET=false)
 println(2^N*opt)
 
 

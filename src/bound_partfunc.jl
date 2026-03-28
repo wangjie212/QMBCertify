@@ -6,8 +6,6 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     end
     time = @elapsed begin
     basis = [get_pfbasis(L, i, d) for i = 1:4]
-    basis_loct = [get_pfbasis_loct(L, i) for i = 1:2]
-    basis_loc1 = [get_pfbasis_loc1(L, i) for i = 1:2]
     coe1 = Vector{Vector{Vector{Int8}}}(undef, 4)
     bi1 = Vector{Vector{Vector{Vector{UInt16}}}}(undef, 4)
     coe2 = Vector{Vector{Vector{Int8}}}(undef, 4)
@@ -17,11 +15,11 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         p = length(basis[i][1])
         k = Int(length(basis[i][2])/L)
         for j = 1:p, s = j:p
-            bi = sadd(involution(basis[i][1][j]), basis[i][1][s], realify=true)[1]
+            bi = sadd(basis[i][1][j], basis[i][1][s])[1]
             push!(tsupp, reduce_pf(bi, L))
         end
         for j = 1:p, s = 1:k
-            bi = sadd(involution(basis[i][1][j]), basis[i][2][L*(s-1)+1], realify=true)[1]
+            bi = sadd(basis[i][1][j], basis[i][2][L*(s-1)+1])[1]
             if !iszero(bi)
                 push!(tsupp, reduce_pf(bi, L))
             end
@@ -60,13 +58,6 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
-    # basis0 = [get_pfbasis0(L, i) for i = 1:4]
-    # for i = 1:4, j = 1:length(basis0[i]), k = j:length(basis0[i])
-    #     bi = sadd(involution(basis0[i][j]), basis0[i][k])[1]
-    #     if !iszero(bi)
-    #         push!(tsupp, reduce_pf(bi, L))
-    #     end
-    # end
     sort!(tsupp)
     unique!(tsupp)
     end
@@ -87,7 +78,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             if l == 1
                 pos = @variable(model, [1:k+p, 1:k+p], PSD)
                 for j = 1:p, s = j:p
-                    bi = sadd(involution(basis[i][1][j]), basis[i][1][s], realify=true)[1]
+                    bi = sadd(basis[i][1][j], basis[i][1][s])[1]
                     Locb = bfind(tsupp, reduce_pf(bi, L))
                     if j == s
                         @inbounds add_to_expression!(cons[Locb], pos[j,s])
@@ -96,10 +87,10 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
                     end
                 end
                 for j = 1:p, s = 1:k
-                    bi,coe = sadd(involution(basis[i][1][j]), basis[i][2][L*(s-1)+1], realify=true)
+                    bi = sadd(basis[i][1][j], basis[i][2][L*(s-1)+1])[1]
                     if !iszero(bi)
                         Locb = bfind(tsupp, reduce_pf(bi, L))
-                        @inbounds add_to_expression!(cons[Locb], 2*coe*sqrt(L), pos[j,s+p])
+                        @inbounds add_to_expression!(cons[Locb], 2*sqrt(L), pos[j,s+p])
                     end
                 end
             elseif l == Int(L/2) + 1
@@ -152,93 +143,16 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
-    # for i = 1:4
-    #     mb = max(length(basis0[i]), mb)
-    #     pos = @variable(model, [1:length(basis0[i]), 1:length(basis0[i])], PSD)
-    #     for j = 1:length(basis0[i]), k = j:length(basis0[i])
-    #         bi,coef = sadd(involution(basis0[i][j]), basis0[i][k], realify=true)
-    #         if !iszero(bi)
-    #             Locb = bfind(tsupp, reduce_pf(bi, L))
-    #             if j == k
-    #                 @inbounds add_to_expression!(cons[Locb], coef, pos[j,k])
-    #             else
-    #                 @inbounds add_to_expression!(cons[Locb], 2*coef, pos[j,k])
-    #             end
-    #         end
-    #     end
-    # end
-    pos = @variable(model, [1:length(basis_loct[1]), 1:length(basis_loct[1])], PSD)
-    for i = 1:length(basis_loct[1]), j = i:length(basis_loct[1])
-        bi,coef = sadd(basis_loct[1][i], basis_loct[1][j], realify=true)
-        Locb1 = bfind(tsupp, reduce_pf(UInt16[1;bi], L))
-        Locb2 = bfind(tsupp, reduce_pf(UInt16[1;1;bi], L))
-        if i == j
-            @inbounds add_to_expression!(cons[Locb1], coef, pos[i,j])
-            @inbounds add_to_expression!(cons[Locb2], -coef, pos[i,j])
-        else
-            @inbounds add_to_expression!(cons[Locb1], 2*coef, pos[i,j])
-            @inbounds add_to_expression!(cons[Locb2], -2*coef, pos[i,j])
-        end
+    for i = 1:2
+        basis_loc = get_pfbasis(L, i, d-1)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[1], [1;1]], [1, -1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2;2]], [10, -1], L)
     end
-    # pos = @variable(model, [1:length(basis_loct[1]), 1:length(basis_loct[1])], PSD)
-    # for i = 1:length(basis_loct[1]), j = i:length(basis_loct[1])
-    #     bi,coef = sadd(basis_loct[1][i], UInt16[2;basis_loct[1][j]], realify=true)
-    #     Locb = bfind(tsupp, reduce_pf(bi, L))
-    #     if i == j
-    #         @inbounds add_to_expression!(cons[Locb], coef, pos[i,j])
-    #     else
-    #         @inbounds add_to_expression!(cons[Locb], 2*coef, pos[i,j])
-    #     end
-    # end
-    pos = @variable(model, [1:length(basis_loct[1]), 1:length(basis_loct[1])], PSD)
-    for i = 1:length(basis_loct[1]), j = i:length(basis_loct[1])
-        bi,coef1 = sadd(basis_loct[1][i], UInt16[2;basis_loct[1][j]], realify=true)
-        Locb1 = bfind(tsupp, reduce_pf(bi, L))
-        bi,coef2 = sadd(basis_loct[1][i], UInt16[2;2;basis_loct[1][j]], realify=true)
-        Locb2 = bfind(tsupp, reduce_pf(bi, L))
-        if i == j
-            @inbounds add_to_expression!(cons[Locb1], 10*coef1, pos[i,j])
-            @inbounds add_to_expression!(cons[Locb2], -coef2, pos[i,j])
-        else
-            @inbounds add_to_expression!(cons[Locb1], 20*coef1, pos[i,j])
-            @inbounds add_to_expression!(cons[Locb2], -2*coef2, pos[i,j])
-        end
-    end
-    pos = @variable(model, [1:Int(L/2) + 1], lower_bound=0)
-    for l = 1:Int(L/2) + 1, r = 1:L
-        bi,coef = sadd(basis_loct[2][1], UInt16[2;basis_loct[2][r]], realify=true)
-        Locb = bfind(tsupp, reduce_pf(bi, L))
-        @inbounds add_to_expression!(cons[Locb], coef, pos[l]*cos(2*pi*(r-1)*(l-1)/L))
-    end
-    pos = @variable(model, [1:length(basis_loc1[1]), 1:length(basis_loc1[1])], PSD)
-    for i = 1:length(basis_loc1[1]), j = i:length(basis_loc1[1])
-        bi,coef = sadd(basis_loc1[1][i], UInt16[3;basis_loc1[1][j]], realify=true)
-        Locb = bfind(tsupp, reduce_pf(bi, L))
-        if i == j
-            @inbounds add_to_expression!(cons[Locb], coef, pos[i,j])
-        else
-            @inbounds add_to_expression!(cons[Locb], 2*coef, pos[i,j])
-        end
-    end
-    # pos = @variable(model, [1:length(basis_loc1[1]), 1:length(basis_loc1[1])], PSD)
-    # for i = 1:length(basis_loc1[1]), j = i:length(basis_loc1[1])
-    #     bi,coef1 = sadd(basis_loc1[1][i], basis_loc1[1][j], realify=true)
-    #     Locb1 = bfind(tsupp, reduce_pf(bi, L))
-    #     bi,coef2 = sadd(basis_loc1[1][i], UInt16[3;basis_loc1[1][j]], realify=true)
-    #     Locb2 = bfind(tsupp, reduce_pf(bi, L))
-    #     if i == j
-    #         @inbounds add_to_expression!(cons[Locb1], 10*coef1, pos[i,j])
-    #         @inbounds add_to_expression!(cons[Locb2], -coef2, pos[i,j])
-    #     else
-    #         @inbounds add_to_expression!(cons[Locb1], 20*coef1, pos[i,j])
-    #         @inbounds add_to_expression!(cons[Locb2], -2*coef2, pos[i,j])
-    #     end
-    # end
-    pos = @variable(model, [1:Int(L/2) + 1], lower_bound=0)
-    for l = 1:Int(L/2) + 1, r = 1:L
-        bi,coef = sadd(basis_loc1[2][1], UInt16[3;basis_loc1[2][r]], realify=true)
-        Locb = bfind(tsupp, reduce_pf(bi, L))
-        @inbounds add_to_expression!(cons[Locb], coef, pos[l]*cos(2*pi*(r-1)*(l-1)/L))
+    for i = 3:4
+        basis_loc = get_pfbasis(L, i, d-1)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3;3]], [10, -1], L)
     end
     free = @variable(model, [1:2d])
     for i = 1:2d
@@ -246,7 +160,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         @inbounds add_to_expression!(cons[Locb], free[i])
         @inbounds add_to_expression!(cons[1], -1/(i+1), free[i])
     end
-    free = @variable(model, [1:3])
+    free = @variable(model, [1:4])
     Locb = bfind(tsupp, [2;4;7])
     @inbounds add_to_expression!(cons[Locb], -3L*beta, free[1])
     Locb = bfind(tsupp, [3])
@@ -263,6 +177,18 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     @inbounds add_to_expression!(cons[Locb], -3L*beta, free[3])
     Locb = bfind(tsupp, [3])
     @inbounds add_to_expression!(cons[Locb], -1, free[3])
+    Locb = bfind(tsupp, [3;4;7])
+    @inbounds add_to_expression!(cons[Locb], free[4])
+    for i = 1:L, j = 1:3
+        bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
+        bi,coef = reduce2!(reduce3!(reduce1!(bi)))
+        reduce3!(bi)
+        bi = reduce_pf(UInt16[2;bi], L)
+        if !iszero(bi)
+            Locb = bfind(tsupp, bi)
+            @inbounds add_to_expression!(cons[Locb], -beta*coef, free[4])
+        end
+    end
     end
     if QUIET == false
         println("Finished block-diagonalization in $time seconds.")
@@ -290,15 +216,33 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
        println("solution status: $status")
     end
     println("optimum = $objv")
-    return objv,tsupp
+    return objv
 end
 
 function involution(a::Vector{UInt16})
-    ind = findall(x -> x == 2 || x == 3, a)
-    if !isempty(ind)
-        b = copy(a)
-        b[ind] = reverse(b[ind])
-        return b
+    s = findfirst(x -> x != 1, a)
+    if s === nothing
+        return a
+    elseif s > 1
+        a = a[s:end]
+    end
+    if findfirst(x -> x == 2 || x == 3, a) !== nothing
+        a = reverse(a)
+        ind = findall(x -> x == 2 || x == 3, a)
+        if ind[1] > 2
+            ind = [0; ind]
+        end
+        if ind[end] < length(a) - 1
+            ind = [ind; length(a)+1]
+        end
+        for i = 1:length(ind) - 1
+            if ind[i+1] > ind[i] + 1
+                a[ind[i]+1:ind[i+1]-1] = reverse(a[ind[i]+1:ind[i+1]-1])
+            end
+        end
+    end
+    if s > 1
+        a = [ones(UInt16, s-1); a]
     end
     return a
 end
@@ -315,34 +259,32 @@ function sadd(a::Vector{UInt16}, b::Vector{UInt16}; realify=false)
             ind2 = findfirst(x -> x == 2 || x == 3, b)
             ind2 = ind2 === nothing ? length(b)+1 : ind2
             if ind2 > 1
-                temp = [a[ind1+1:end]; b[1:ind2-1]]
-                temp,coef = reduce2!(reduce3!(reduce1!(temp)))
+                temp,coef = reduce2!(reduce3!(reduce1!([a[ind1+1:end]; b[1:ind2-1]])))
                 reduce3!(temp)
                 word = [a[1:ind1]; temp; b[ind2:end]]
             end
-        end
-        if length(word) > 1 && word[1] > 3 && word[end] > 3 && ceil(Int, word[1]/3) == ceil(Int, word[end]/3)
-            if word[1] == word[end]
-                word = word[2:end-1]
-            else
-                w,c = reduce2!([word[end];word[1]])
-                coef *= c
-                word = [word[2:end-1];w]
-            end
-        end
-        if realify == true && !isreal(coef)
-            coef = imag(coef)
+        end 
+    end
+    ind1 = findfirst(x -> x == 2 || x == 3, word)
+    if ind1 !== nothing && ind1 > 1
+        ind2 = findlast(x -> x == 2 || x == 3, word)
+        if ind2 < length(word)
+            temp,c = reduce2!(reduce3!(reduce1!([word[ind2+1:end]; word[1:ind1-1]])))
+            reduce3!(temp)
+            coef *= c
+            word = [word[ind1:ind2]; temp]
+        else
+            word = [word[ind1:end]; word[1:ind1-1]]
         end
     end
-    ind = findfirst(x -> x == 2 || x == 3, word)
-    if ind !== nothing
-        word = [word[ind:end]; word[1:ind-1]]
+    if realify == true && !isreal(coef)
+        coef = imag(coef)
     end
     return [ones(UInt16, s); word],coef
 end
 
 function iszero(a::Vector{UInt16})
-    return !isempty(a) && !all(x -> x == 1, a) && !any(x -> x == 2 || x == 3, a)
+    return (!isempty(a) && !all(x -> x == 1, a) && !any(x -> x == 2 || x == 3, a)) || any(i->isodd(count(isequal(i), mod.(a[a.>3],3))), 0:2)
 end
 
 function reduce_pf(a::Vector{UInt16}, L)
@@ -440,6 +382,9 @@ function get_pfbasis(L, label, d)
         end
         if d > 2
             push!(basis[1], [1;1;1], [1;1;2], [1;2;2], [2;2;2])
+            append!(basis[2], [sort([2;3i+1;smod(3i+1, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([2;3i+2;smod(3i+2, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([2;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
         end
     elseif label == 2
         basis[1] = Vector{UInt16}[]
@@ -449,12 +394,12 @@ function get_pfbasis(L, label, d)
         end
         if d > 2
             append!(basis[2], [[[1;2;3i+1] for i = 1:L]; [[1;1;3i+1] for i = 1:L]; [[2;2;3i+1] for i = 1:L]; [[2;3i+1;2] for i = 1:L]; [[3i+1;2;2] for i = 1:L]; [[1;3i+1;2] for i = 1:L]; 
-            [[1;3i+2;3i+6] for i = 1:L]; [[1;3i+3;3i+5] for i = 1:L]; [[2;3i+2;3i+6] for i = 1:L]; [[3i+2;2;3i+6] for i = 1:L]; [[3i+2;3i+6;2] for i = 1:L]; [[2;3i+3;3i+5] for i = 1:L]; 
-            [[3i+3;2;3i+5] for i = 1:L]; [[3i+3;3i+5;2] for i = 1:L]])
+            [sort([1;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([1;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([2;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;2;smod(3i+3, 3L)+3]) for i = 1:L]; 
+            [sort([3i+2;smod(3i+3, 3L)+3;2]) for i = 1:L]; [sort([2;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;2;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;2]) for i = 1:L]])
         end
-        # if d > 1
-        #     append!(basis[2], [[[3i+2;3i+6] for i = 1:L]; [[3i+3;3i+5] for i = 1:L]])
-        # end
+        if d > 1
+            append!(basis[2], [[sort([3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3]) for i = 1:L]])
+        end
     elseif label == 3
         basis[1] = Vector{UInt16}[[], [3]]
         basis[2] = Vector{UInt16}[]
@@ -464,6 +409,9 @@ function get_pfbasis(L, label, d)
         end
         if d > 2
             push!(basis[1], [3;3;3])
+            append!(basis[2], [sort([3;3i+1;smod(3i+1, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3;3i+2;smod(3i+2, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
         end
     else
         basis[1] = Vector{UInt16}[]
@@ -472,43 +420,84 @@ function get_pfbasis(L, label, d)
             append!(basis[2], [[[3i+1;3] for i = 1:L]; [[3;3i+1] for i = 1:L]])
         end
         if d > 2
-            append!(basis[2], [[[3;3;3i+1] for i = 1:L]; [[3;3i+1;3] for i = 1:L]; [[3i+1;3;3] for i = 1:L]; [[3;3i+2;3i+6] for i = 1:L]; [[3i+2;3;3i+6] for i = 1:L]; 
-            [[3i+2;3i+6;3] for i = 1:L]; [[3;3i+3;3i+5] for i = 1:L]; [[3i+3;3;3i+5] for i = 1:L]; [[3i+3;3i+5;3] for i = 1:L]])
+            append!(basis[2], [[[3;3;3i+1] for i = 1:L]; [[3;3i+1;3] for i = 1:L]; [[3i+1;3;3] for i = 1:L]; [sort([3;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;3;smod(3i+3, 3L)+3]) for i = 1:L]; 
+            [sort([3i+2;smod(3i+3, 3L)+3;3]) for i = 1:L]; [sort([3;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;3]) for i = 1:L]])
         end
-        # if d > 1
-        #     append!(basis[2], [[[3i+2;3i+6] for i = 1:L]; [[3i+3;3i+5] for i = 1:L]])
-        # end
+        if d > 1
+            append!(basis[2], [[sort([3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3]) for i = 1:L]])
+        end
     end
     return basis
 end
 
-function get_pfbasis_loct(L, label)
-    if label == 1
-        basis = Vector{UInt16}[[], [1], [2]]
-    else
-        basis = Vector{UInt16}[[3i+1] for i = 1:L]
+function add_block!(model, cons, basis, tsupp, supp, coe, L)
+    p = length(basis[1])
+    k = Int(length(basis[2])/L)
+    for l = 1:Int(L/2) + 1
+        if l == 1
+            pos = @variable(model, [1:k+p, 1:k+p], PSD)
+            for j = 1:p, s = j:p, (t, item) in enumerate(supp)
+                bi = sadd(basis[1][j], [item; basis[1][s]])[1]
+                Locb = bfind(tsupp, reduce_pf(bi, L))
+                if j == s
+                    @inbounds add_to_expression!(cons[Locb], coe[t], pos[j,s])
+                else
+                    @inbounds add_to_expression!(cons[Locb], 2*coe[t], pos[j,s])
+                end
+            end
+            for j = 1:p, s = 1:k, (t, item) in enumerate(supp)
+                bi = sadd(basis[1][j], [item; basis[2][L*(s-1)+1]])[1]
+                if !iszero(bi)
+                    Locb = bfind(tsupp, reduce_pf(bi, L))
+                    @inbounds add_to_expression!(cons[Locb], 2*coe[t]*sqrt(L), pos[j,s+p])
+                end
+            end
+        elseif l == Int(L/2) + 1
+            pos = @variable(model, [1:k, 1:k], PSD)
+        else
+            pos = @variable(model, [1:2k, 1:2k], PSD)
+        end
+        for s = 1:k
+            if l == 1
+                pp = pos[s+p, s+p]
+            elseif l == Int(L/2) + 1
+                pp = pos[s, s]
+            else
+                pp = pos[s, s] + pos[s+k, s+k]
+            end
+            for r = 1:Int(L/2)+1, (t, item) in enumerate(supp)
+                bi,c = sadd(involution(basis[2][L*(s-1)+1]), [item; basis[2][L*(s-1)+r]], realify=true)
+                if !iszero(bi)
+                    Locb = bfind(tsupp, reduce_pf(bi, L))
+                    if r == 1
+                        @inbounds add_to_expression!(cons[Locb], c*coe[t], pp)
+                    elseif r == Int(L/2)+1
+                        @inbounds add_to_expression!(cons[Locb], c*coe[t]*(-1)^(l-1), pp)
+                    else
+                        @inbounds add_to_expression!(cons[Locb], 2*c*coe[t]*cos(2*pi*(r-1)*(l-1)/L), pp)
+                    end
+                end
+            end
+        end
+        for j1 = 1:k-1, j2 = j1+1:k
+            if l == 1
+                pp1 = pos[j1+p, j2+p]
+            elseif l == Int(L/2) + 1
+                pp1 = pos[j1, j2]
+            else
+                pp1 = pos[j1, j2] + pos[j1+k, j2+k]
+                pp2 = pos[j1+k, j2] - pos[j2+k, j1]
+            end
+            for r = 1:L, (t, item) in enumerate(supp)
+                bi,c = sadd(involution(basis[2][L*(j1-1)+1]), [item; basis[2][L*(j2-1)+r]], realify=true)
+                if !iszero(bi)
+                    Locb = bfind(tsupp, reduce_pf(bi, L))
+                    @inbounds add_to_expression!(cons[Locb], 2*c*coe[t]*cos(2*pi*(r-1)*(l-1)/L), pp1)
+                    if l != 1 && l != Int(L/2) + 1
+                        @inbounds add_to_expression!(cons[Locb], -2*c*coe[t]*sin(2*pi*(r-1)*(l-1)/L), pp2)                        
+                    end
+                end
+            end
+        end
     end
-    return basis
-end
-
-function get_pfbasis_loc1(L, label)
-    if label == 1
-        basis = Vector{UInt16}[[], [3]]
-    else
-        basis = Vector{UInt16}[[3i+1] for i = 1:L]
-    end
-    return basis
-end
-
-function get_pfbasis0(L, label)
-    if label == 1
-        basis = Vector{UInt16}[[[], [1], [2], [1;1], [1;2], [2;2]]; [sort([3i+1;smod(3i+1, 3L)+3]) for i = 1:L]]
-    elseif label == 2
-        basis = Vector{UInt16}[[[3i+1] for i = 1:L]; [[1;3i+1] for i = 1:L]; [[3i+1;2] for i = 1:L]; [[2;3i+1] for i = 1:L]]
-    elseif label == 3
-        basis = Vector{UInt16}[[[], [3], [3;3]]; [sort([3i+1;smod(3i+1, 3L)+3]) for i = 1:L]]
-    else
-        basis = Vector{UInt16}[[[3i+1] for i = 1:L]; [[3i+1;3] for i = 1:L]; [[3;3i+1] for i = 1:L]]
-    end
-    return basis
 end
