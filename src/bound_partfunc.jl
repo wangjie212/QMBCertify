@@ -1,4 +1,4 @@
-function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::Int; QUIET=false)
+function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::Int; lb=nothing, QUIET=false)
     println("*********************************** QMBCertify ***********************************")
     println("QMBCertify is launching...")
     if QUIET == false
@@ -143,16 +143,17 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
+    UB = lb !== nothing ? exp(-L*beta*lb) : 2
     for i = 1:2
         basis_loc = get_pfbasis(L, i, d-1)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[1], [1;1]], [1, -1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2;2]], [10, -1], L)
+        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2], [2;2]], [UB, -1], L)
     end
     for i = 3:4
         basis_loc = get_pfbasis(L, i, d-1)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3;3]], [10, -1], L)
+        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3], [3;3]], [UB, -1], L)
     end
     free = @variable(model, [1:2d])
     for i = 1:2d
@@ -162,19 +163,19 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     end
     free = @variable(model, [1:13])
     Locb = bfind(tsupp, [2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[1])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[1])
     Locb = bfind(tsupp, [3])
     @inbounds add_to_expression!(cons[Locb], -1, free[1])
     @inbounds add_to_expression!(cons[1], free[1])
     Locb = bfind(tsupp, [2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -6L*beta, free[2])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[2])
     Locb = bfind(tsupp, [3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[2])
     @inbounds add_to_expression!(cons[1], free[2])
     Locb = bfind(tsupp, [2])
     @inbounds add_to_expression!(cons[Locb], free[3])
     Locb = bfind(tsupp, [1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[3])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[3])
     Locb = bfind(tsupp, [3])
     @inbounds add_to_expression!(cons[Locb], -1, free[3])
     Locb = bfind(tsupp, [3;4;7])
@@ -182,50 +183,49 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     for i = 1:L, j = 1:3
         bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
         bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        reduce3!(bi)
-        bi = reduce_pf(UInt16[2;bi], L)
-        if !iszero(bi)
-            Locb = bfind(tsupp, bi)
-            @inbounds add_to_expression!(cons[Locb], -beta*coef, free[4])
+        bi = UInt16[2;reduce3!(bi)]
+        if isreal(coef) && !iszero(bi)
+            Locb = bfind(tsupp, reduce_pf(bi, L))
+            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[4])
         end
     end
     Locb = bfind(tsupp, [1;2])
     @inbounds add_to_expression!(cons[Locb], 2, free[5])
     Locb = bfind(tsupp, [1;1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[5])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[5])
     Locb = bfind(tsupp, [3])
     @inbounds add_to_expression!(cons[Locb], -1, free[5])
     Locb = bfind(tsupp, [2;2])
     @inbounds add_to_expression!(cons[Locb], free[6])
     Locb = bfind(tsupp, [1;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -6L*beta, free[6])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[6])
     Locb = bfind(tsupp, [3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[6])
     Locb = bfind(tsupp, [2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -9L*beta, free[7])
+    @inbounds add_to_expression!(cons[Locb], -9L*beta/4, free[7])
     Locb = bfind(tsupp, [3;3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[7])
     @inbounds add_to_expression!(cons[1], free[7])
     Locb = bfind(tsupp, [1;1;2])
     @inbounds add_to_expression!(cons[Locb], 3, free[8])
     Locb = bfind(tsupp, [1;1;1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[8])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[8])
     Locb = bfind(tsupp, [3])
     @inbounds add_to_expression!(cons[Locb], -1, free[8])
     Locb = bfind(tsupp, [1;2;2])
     @inbounds add_to_expression!(cons[Locb], 2, free[9])
     Locb = bfind(tsupp, [1;1;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -6L*beta, free[9])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[9])
     Locb = bfind(tsupp, [3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[9])
     Locb = bfind(tsupp, [2;2;2])
     @inbounds add_to_expression!(cons[Locb], free[10])
     Locb = bfind(tsupp, [1;2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -9L*beta, free[10])
+    @inbounds add_to_expression!(cons[Locb], -9L*beta/4, free[10])
     Locb = bfind(tsupp, [3;3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[10])
     Locb = bfind(tsupp, [2;2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -12L*beta, free[11])
+    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[11])
     Locb = bfind(tsupp, [3;3;3;3])
     @inbounds add_to_expression!(cons[Locb], -1, free[11])
     @inbounds add_to_expression!(cons[1], free[11])
@@ -234,11 +234,10 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     for i = 1:L, j = 1:3
         bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
         bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        reduce3!(bi)
-        bi = reduce_pf(UInt16[2;2;bi], L)
-        if !iszero(bi)
-            Locb = bfind(tsupp, bi)
-            @inbounds add_to_expression!(cons[Locb], -beta*coef, free[12])
+        bi = UInt16[2;2;reduce3!(bi)]
+        if isreal(coef) && !iszero(bi)
+            Locb = bfind(tsupp, reduce_pf(bi, L))
+            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[12])
         end
     end
     Locb = bfind(tsupp, [2;4;7])
@@ -248,11 +247,10 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
     for i = 1:L, j = 1:3
         bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
         bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        reduce3!(bi)
-        bi = reduce_pf(UInt16[1;2;bi], L)
-        if !iszero(bi)
-            Locb = bfind(tsupp, bi)
-            @inbounds add_to_expression!(cons[Locb], -beta*coef, free[13])
+        bi = UInt16[1;2;reduce3!(bi)]
+        if isreal(coef) && !iszero(bi)
+            Locb = bfind(tsupp, reduce_pf(bi, L))
+            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[13])
         end
     end
     end
