@@ -143,17 +143,17 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
-    UB = lb !== nothing ? exp(-L*beta*lb) : 2
+    UB = lb !== nothing ? exp(-L*beta*lb) : 3
     for i = 1:2
         basis_loc = get_pfbasis(L, i, d-1)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[1], [1;1]], [1, -1], L)
-        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2], [2;2]], [UB, -1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
+        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2]], [UB, -1], L)
     end
     for i = 3:4
         basis_loc = get_pfbasis(L, i, d-1)
-        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3], [3;3]], [UB, -1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
+        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [UB, -1], L)
     end
     free = @variable(model, [1:2d])
     for i = 1:2d
@@ -161,97 +161,39 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         @inbounds add_to_expression!(cons[Locb], free[i])
         @inbounds add_to_expression!(cons[1], -1/(i+1), free[i])
     end
-    free = @variable(model, [1:13])
-    Locb = bfind(tsupp, [2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[1])
-    Locb = bfind(tsupp, [3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[1])
-    @inbounds add_to_expression!(cons[1], free[1])
-    Locb = bfind(tsupp, [2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[2])
-    Locb = bfind(tsupp, [3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[2])
-    @inbounds add_to_expression!(cons[1], free[2])
-    Locb = bfind(tsupp, [2])
-    @inbounds add_to_expression!(cons[Locb], free[3])
-    Locb = bfind(tsupp, [1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[3])
-    Locb = bfind(tsupp, [3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[3])
-    Locb = bfind(tsupp, [3;4;7])
-    @inbounds add_to_expression!(cons[Locb], -1, free[4])
-    for i = 1:L, j = 1:3
-        bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
-        bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        bi = UInt16[2;reduce3!(bi)]
-        if isreal(coef) && !iszero(bi)
-            Locb = bfind(tsupp, reduce_pf(bi, L))
-            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[4])
+    f = d == 3 ? 13 : 31
+    free = @variable(model, [1:f])
+    l = 0
+    for k = 1:2d-2, a = 0:k-1
+        l += 1
+        if a > 0
+            Locb = bfind(tsupp, [ones(Int, a-1);2*ones(Int, k-a)])
+            @inbounds add_to_expression!(cons[Locb], a, free[l])
+        else
+            @inbounds add_to_expression!(cons[1], free[l])
         end
+        Locb = bfind(tsupp, [ones(Int, a);2*ones(Int, k-a);4;7])
+        @inbounds add_to_expression!(cons[Locb], -3L*beta*(k-a)/4, free[l])
+        Locb = bfind(tsupp, 3*ones(Int, k-a))
+        @inbounds add_to_expression!(cons[Locb], -1, free[l])
     end
-    Locb = bfind(tsupp, [1;2])
-    @inbounds add_to_expression!(cons[Locb], 2, free[5])
-    Locb = bfind(tsupp, [1;1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[5])
-    Locb = bfind(tsupp, [3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[5])
-    Locb = bfind(tsupp, [2;2])
-    @inbounds add_to_expression!(cons[Locb], free[6])
-    Locb = bfind(tsupp, [1;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[6])
-    Locb = bfind(tsupp, [3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[6])
-    Locb = bfind(tsupp, [2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -9L*beta/4, free[7])
-    Locb = bfind(tsupp, [3;3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[7])
-    @inbounds add_to_expression!(cons[1], free[7])
-    Locb = bfind(tsupp, [1;1;2])
-    @inbounds add_to_expression!(cons[Locb], 3, free[8])
-    Locb = bfind(tsupp, [1;1;1;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/4, free[8])
-    Locb = bfind(tsupp, [3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[8])
-    Locb = bfind(tsupp, [1;2;2])
-    @inbounds add_to_expression!(cons[Locb], 2, free[9])
-    Locb = bfind(tsupp, [1;1;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta/2, free[9])
-    Locb = bfind(tsupp, [3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[9])
-    Locb = bfind(tsupp, [2;2;2])
-    @inbounds add_to_expression!(cons[Locb], free[10])
-    Locb = bfind(tsupp, [1;2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -9L*beta/4, free[10])
-    Locb = bfind(tsupp, [3;3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[10])
-    Locb = bfind(tsupp, [2;2;2;2;4;7])
-    @inbounds add_to_expression!(cons[Locb], -3L*beta, free[11])
-    Locb = bfind(tsupp, [3;3;3;3])
-    @inbounds add_to_expression!(cons[Locb], -1, free[11])
-    @inbounds add_to_expression!(cons[1], free[11])
-    Locb = bfind(tsupp, [3;3;4;7])
-    @inbounds add_to_expression!(cons[Locb], -1, free[12])
-    for i = 1:L, j = 1:3
-        bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
-        bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        bi = UInt16[2;2;reduce3!(bi)]
-        if isreal(coef) && !iszero(bi)
-            Locb = bfind(tsupp, reduce_pf(bi, L))
-            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[12])
+    for k = 1:2d-4, a = 0:k-1
+        l += 1
+        if a > 0
+            Locb = bfind(tsupp, [ones(Int, a-1);2*ones(Int, k-a);4;7])
+            @inbounds add_to_expression!(cons[Locb], a, free[l])
         end
-    end
-    Locb = bfind(tsupp, [2;4;7])
-    @inbounds add_to_expression!(cons[Locb], free[13])
-    Locb = bfind(tsupp, [3;4;7])
-    @inbounds add_to_expression!(cons[Locb], -1, free[13])
-    for i = 1:L, j = 1:3
-        bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
-        bi,coef = reduce2!(reduce3!(reduce1!(bi)))
-        bi = UInt16[1;2;reduce3!(bi)]
-        if isreal(coef) && !iszero(bi)
-            Locb = bfind(tsupp, reduce_pf(bi, L))
-            @inbounds add_to_expression!(cons[Locb], -beta*coef/4, free[13])
+        for i = 1:L, j = 1:3
+            bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
+            bi,coef = reduce2!(reduce3!(reduce1!(bi)))
+            bi = UInt16[ones(Int, a);2*ones(Int, k-a);reduce3!(bi)]
+            if isreal(coef) && !iszero(bi)
+                Locb = bfind(tsupp, reduce_pf(bi, L))
+                @inbounds add_to_expression!(cons[Locb], -beta*coef*(k-a)/4, free[l])
+            end
         end
+        Locb = bfind(tsupp, [3*ones(Int, k-a);4;7])
+        @inbounds add_to_expression!(cons[Locb], -1, free[l])
     end
     end
     if QUIET == false
@@ -451,6 +393,29 @@ function get_pfbasis(L, label, d)
             append!(basis[2], [sort([2;3i+2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3i+2;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;2]) for i = 1:L])
             append!(basis[2], [sort([2;3i+3;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3i+3;2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;2]) for i = 1:L])
         end
+        if d > 3
+            push!(basis[1], [1;1;1;1], [1;1;1;2], [1;1;2;2], [1;2;2;2], [2;2;2;2])
+            append!(basis[2], [sort([1;1;3i+1;smod(3i+1, 3L)+3]) for i = 1:L], [sort([1;1;3i+2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([1;1;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([1;2;3i+1;smod(3i+1, 3L)+3]) for i = 1:L], [sort([1;2;3i+2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([1;2;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([1;3i+1;2;smod(3i+1, 3L)+3]) for i = 1:L], [sort([1;3i+2;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([1;3i+3;2;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([1;3i+1;smod(3i+1, 3L)+3;2]) for i = 1:L], [sort([1;3i+2;smod(3i+2, 3L)+3;2]) for i = 1:L], [sort([1;3i+3;smod(3i+3, 3L)+3;2]) for i = 1:L])
+            append!(basis[2], [sort([2;2;3i+1;smod(3i+1, 3L)+3]) for i = 1:L], [sort([2;2;3i+2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([2;2;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([2;3i+1;2;smod(3i+1, 3L)+3]) for i = 1:L], [sort([2;3i+2;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([2;3i+3;2;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([2;3i+1;smod(3i+1, 3L)+3;2]) for i = 1:L], [sort([2;3i+2;smod(3i+2, 3L)+3;2]) for i = 1:L], [sort([2;3i+3;smod(3i+3, 3L)+3;2]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;2;2;smod(3i+1, 3L)+3]) for i = 1:L], [sort([3i+2;2;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3i+3;2;2;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;2;smod(3i+1, 3L)+3;2]) for i = 1:L], [sort([3i+2;2;smod(3i+2, 3L)+3;2]) for i = 1:L], [sort([3i+3;2;smod(3i+3, 3L)+3;2]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;smod(3i+1, 3L)+3;2;2]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;2;2]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;2;2]) for i = 1:L])
+            append!(basis[2], [sort([1;3i+1;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([1;3i+1;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([1;3i+2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([1;3i+2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([1;3i+3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([1;3i+3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([2;3i+1;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([2;3i+1;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([2;3i+2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([2;3i+2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([2;3i+3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([2;3i+3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;2;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+1;2;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([3i+2;2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([3i+3;2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+3;2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;2;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+3, 3L)+3;2;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;2;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([3i+2;smod(3i+3, 3L)+3;2;smod(3i+4, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;2;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;2;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3;2]) for i = 1:L], [sort([3i+1;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3;2]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3;2]) for i = 1:L],
+            [sort([3i+2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3;2]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3;2]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3;2]) for i = 1:L])
+        end
     elseif label == 2
         basis[1] = Vector{UInt16}[]
         basis[2] = Vector{UInt16}[[3i+1] for i = 1:L]
@@ -458,12 +423,36 @@ function get_pfbasis(L, label, d)
             append!(basis[2], [[[1;3i+1] for i = 1:L]; [[3i+1;2] for i = 1:L]; [[2;3i+1] for i = 1:L]])
         end
         if d > 2
-            append!(basis[2], [[[1;2;3i+1] for i = 1:L]; [[1;1;3i+1] for i = 1:L]; [[2;2;3i+1] for i = 1:L]; [[2;3i+1;2] for i = 1:L]; [[3i+1;2;2] for i = 1:L]; [[1;3i+1;2] for i = 1:L]; 
-            [sort([1;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([1;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([2;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;2;smod(3i+3, 3L)+3]) for i = 1:L]; 
-            [sort([3i+2;smod(3i+3, 3L)+3;2]) for i = 1:L]; [sort([2;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;2;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;2]) for i = 1:L]])
+            append!(basis[2], [[[1;1;3i+1] for i = 1:L]; [[1;2;3i+1] for i = 1:L]; [[1;3i+1;2] for i = 1:L]; [[2;2;3i+1] for i = 1:L]; [[2;3i+1;2] for i = 1:L]; [[3i+1;2;2] for i = 1:L]])
+        end
+        if d > 3
+            append!(basis[2], [[1;1;1;3i+1] for i = 1:L], [[1;1;2;3i+1] for i = 1:L], [[1;1;3i+1;2] for i = 1:L], [[1;2;2;3i+1] for i = 1:L], [[1;2;3i+1;2] for i = 1:L], [[1;3i+1;2;2] for i = 1:L])
+            append!(basis[2], [[2;2;2;3i+1] for i = 1:L], [[2;2;3i+1;2] for i = 1:L], [[2;3i+1;2;2] for i = 1:L], [[3i+1;2;2;2] for i = 1:L])
+            append!(basis[2], [sort([1;3i+1;smod(3i+1, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([1;3i+1;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([1;3i+2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L],
+            [sort([1;3i+2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([1;3i+1;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([1;3i+3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([1;3i+3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([2;3i+1;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;2;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+1, 3L)+3;2;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3;2]) for i = 1:L],
+            [sort([2;3i+1;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([2;3i+2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([2;3i+2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([2;3i+1;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([2;3i+3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([2;3i+3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;2;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;2;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;2;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;2;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;2;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+3, 3L)+3;2;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;2;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;2;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3;2]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3;2]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3;2]) for i = 1:L],
+            [sort([3i+1;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3;2]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3;2]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3;2]) for i = 1:L])
         end
         if d > 1
             append!(basis[2], [[sort([3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3]) for i = 1:L]])
+        end
+        if d > 2
+            append!(basis[2], [[sort([1;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([1;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([2;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;2;smod(3i+3, 3L)+3]) for i = 1:L]; 
+            [sort([3i+2;smod(3i+3, 3L)+3;2]) for i = 1:L]; [sort([2;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;2;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;2]) for i = 1:L]])
+        end
+        if d > 3
+            append!(basis[2], [sort([1;1;3i+2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([1;1;3i+3;smod(3i+2, 3L)+3]) for i = 1:L], [sort([1;2;3i+2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([1;2;3i+3;smod(3i+2, 3L)+3]) for i = 1:L],
+            [sort([1;3i+2;2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([1;3i+3;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([1;3i+2;smod(3i+3, 3L)+3;2]) for i = 1:L], [sort([1;3i+3;smod(3i+2, 3L)+3;2]) for i = 1:L])
+            append!(basis[2], [sort([2;2;3i+2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([2;3i+2;2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([2;3i+2;smod(3i+3, 3L)+3;2]) for i = 1:L], [sort([2;2;3i+3;smod(3i+2, 3L)+3]) for i = 1:L], 
+            [sort([2;3i+3;2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([2;3i+3;smod(3i+2, 3L)+3;2]) for i = 1:L], [sort([3i+2;2;2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3i+3;2;2;smod(3i+2, 3L)+3]) for i = 1:L], 
+            [sort([3i+2;2;smod(3i+3, 3L)+3;2]) for i = 1:L], [sort([3i+3;2;smod(3i+2, 3L)+3;2]) for i = 1:L], [sort([3i+2;smod(3i+3, 3L)+3;2;2]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;2;2]) for i = 1:L])
         end
     elseif label == 3
         basis[1] = Vector{UInt16}[[], [3]]
@@ -478,6 +467,23 @@ function get_pfbasis(L, label, d)
             append!(basis[2], [sort([3;3i+2;smod(3i+2, 3L)+3]) for i = 1:L])
             append!(basis[2], [sort([3;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
         end
+        if d > 3
+            push!(basis[1], [3;3;3;3])
+            append!(basis[2], [sort([3;3;3i+1;smod(3i+1, 3L)+3]) for i = 1:L], [sort([3;3;3i+2;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3;3;3i+3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3;3i+1;3;smod(3i+1, 3L)+3]) for i = 1:L], [sort([3;3i+2;3;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3;3i+3;3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3;3i+1;smod(3i+1, 3L)+3;3]) for i = 1:L], [sort([3;3i+2;smod(3i+2, 3L)+3;3]) for i = 1:L], [sort([3;3i+3;smod(3i+3, 3L)+3;3]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;3;3;smod(3i+1, 3L)+3]) for i = 1:L], [sort([3i+2;3;3;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3i+3;3;3;smod(3i+3, 3L)+3]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;3;smod(3i+1, 3L)+3;3]) for i = 1:L], [sort([3i+2;3;smod(3i+2, 3L)+3;3]) for i = 1:L], [sort([3i+3;3;smod(3i+3, 3L)+3;3]) for i = 1:L])
+            append!(basis[2], [sort([3i+1;smod(3i+1, 3L)+3;3;3]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;3;3]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;3;3]) for i = 1:L])
+            append!(basis[2], [sort([3;3i+1;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3;3i+1;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3;3i+2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([3;3i+2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([3;3i+3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3;3i+3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;3;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+1;3;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([3i+2;3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([3i+3;3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+3;3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+3, 3L)+3;3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;3;smod(3i+6, 3L)+3]) for i = 1:L],
+            [sort([3i+2;smod(3i+3, 3L)+3;3;smod(3i+4, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;smod(3i+6, 3L)+3;3]) for i = 1:L], [sort([3i+1;smod(3i+3, 3L)+3;smod(3i+5, 3L)+3;3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3;3]) for i = 1:L],
+            [sort([3i+2;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3;3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3;3]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3;3]) for i = 1:L])
+        end
     else
         basis[1] = Vector{UInt16}[]
         basis[2] = Vector{UInt16}[[3i+1] for i = 1:L]
@@ -485,11 +491,31 @@ function get_pfbasis(L, label, d)
             append!(basis[2], [[[3i+1;3] for i = 1:L]; [[3;3i+1] for i = 1:L]])
         end
         if d > 2
-            append!(basis[2], [[[3;3;3i+1] for i = 1:L]; [[3;3i+1;3] for i = 1:L]; [[3i+1;3;3] for i = 1:L]; [sort([3;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;3;smod(3i+3, 3L)+3]) for i = 1:L]; 
-            [sort([3i+2;smod(3i+3, 3L)+3;3]) for i = 1:L]; [sort([3;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;3]) for i = 1:L]])
+            append!(basis[2], [[[3;3;3i+1] for i = 1:L]; [[3;3i+1;3] for i = 1:L]; [[3i+1;3;3] for i = 1:L]])
+        end
+        if d > 3
+            append!(basis[2], [[3;3;3;3i+1] for i = 1:L], [[3;3;3i+1;3] for i = 1:L], [[3;3i+1;3;3] for i = 1:L], [[3i+1;3;3;3] for i = 1:L])
+            append!(basis[2], [sort([3;3i+1;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;3;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+1, 3L)+3;3;smod(3i+7, 3L)+3]) for i = 1:L], [sort([3i+1;smod(3i+1, 3L)+3;smod(3i+7, 3L)+3;3]) for i = 1:L],
+            [sort([3;3i+1;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3;3i+2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3;3i+2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3;3i+1;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3;3i+3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3;3i+3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;3;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;3;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;3;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;3;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;3;smod(3i+5, 3L)+3]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+3, 3L)+3;3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;3;smod(3i+6, 3L)+3]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;3;smod(3i+4, 3L)+3]) for i = 1:L],
+            [sort([3i+1;smod(3i+2, 3L)+3;smod(3i+5, 3L)+3;3]) for i = 1:L], [sort([3i+2;smod(3i+1, 3L)+3;smod(3i+5, 3L)+3;3]) for i = 1:L], [sort([3i+2;smod(3i+2, 3L)+3;smod(3i+4, 3L)+3;3]) for i = 1:L],
+            [sort([3i+1;smod(3i+3, 3L)+3;smod(3i+6, 3L)+3;3]) for i = 1:L], [sort([3i+3;smod(3i+1, 3L)+3;smod(3i+6, 3L)+3;3]) for i = 1:L], [sort([3i+3;smod(3i+3, 3L)+3;smod(3i+4, 3L)+3;3]) for i = 1:L])
         end
         if d > 1
             append!(basis[2], [[sort([3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3]) for i = 1:L]])
+        end
+        if d > 2
+            append!(basis[2], [[sort([3;3i+2;smod(3i+3, 3L)+3]) for i = 1:L]; [sort([3i+2;3;smod(3i+3, 3L)+3]) for i = 1:L]; 
+            [sort([3i+2;smod(3i+3, 3L)+3;3]) for i = 1:L]; [sort([3;3i+3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;3;smod(3i+2, 3L)+3]) for i = 1:L]; [sort([3i+3;smod(3i+2, 3L)+3;3]) for i = 1:L]])
+        end
+        if d > 3
+            append!(basis[2], [sort([3;3;3i+2;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3;3i+2;3;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3;3i+2;smod(3i+3, 3L)+3;3]) for i = 1:L], [sort([3;3;3i+3;smod(3i+2, 3L)+3]) for i = 1:L], 
+            [sort([3;3i+3;3;smod(3i+2, 3L)+3]) for i = 1:L], [sort([3;3i+3;smod(3i+2, 3L)+3;3]) for i = 1:L], [sort([3i+2;3;3;smod(3i+3, 3L)+3]) for i = 1:L], [sort([3i+3;3;3;smod(3i+2, 3L)+3]) for i = 1:L], 
+            [sort([3i+2;3;smod(3i+3, 3L)+3;3]) for i = 1:L], [sort([3i+3;3;smod(3i+2, 3L)+3;3]) for i = 1:L], [sort([3i+2;smod(3i+3, 3L)+3;3;3]) for i = 1:L], [sort([3i+3;smod(3i+2, 3L)+3;3;3]) for i = 1:L])
         end
     end
     return basis

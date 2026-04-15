@@ -6,9 +6,8 @@ coe = [3/4]
 N = 10 # number of spins
 lb = -0.4515446 # N = 10
 # lb = -0.4452196 # N = 20
-# beta = 0.18149182855
-beta = 0.1
-@time opt = PFB(supp, coe, beta, N, 3, QUIET=true)
+beta = 0.4
+@time opt = PFB(supp, coe, beta, N, 4, QUIET=true)
 println(2^N*opt)
 
 
