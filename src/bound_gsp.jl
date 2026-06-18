@@ -7,6 +7,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     end
     time = @elapsed begin
     basis = Vector{Vector{Vector{UInt16}}}(undef, 2)
+    gb = nothing
     if pso > 0
         gb = Vector{Vector{Vector{UInt16}}}(undef, 2)
     end
@@ -418,20 +419,21 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
         end
         time = @elapsed begin
             if lattice == "chain"
+                sgram = Vector{Vector{Symmetric{VariableRef}}}(undef, 2)
                 for i = 1:2
                     k = Int(length(gb[i])/L)
-                    pos = Vector{Symmetric{VariableRef}}(undef, Int(L/2)+1)
+                    sgram[i] = Vector{Symmetric{VariableRef}}(undef, Int(L/2)+1)
                     for l = 1:Int(L/2)+1
                         if l == 1 || l == Int(L/2)+1
-                            pos[l] = @variable(model, [1:k, 1:k], PSD)
+                            sgram[i][l] = @variable(model, [1:k, 1:k], PSD)
                         else
-                            pos[l] = @variable(model, [1:2*k, 1:2*k], PSD)
+                            sgram[i][l] = @variable(model, [1:2k, 1:2k], PSD)
                         end
                         for j = 1:k
                             if l == 1 || l == Int(L/2)+1
-                                pp = pos[l][j, j]
+                                pp = sgram[i][l][j, j]
                             else
-                                pp = pos[l][j, j] + pos[l][j+k, j+k]
+                                pp = sgram[i][l][j, j] + sgram[i][l][j+k, j+k]
                             end
                             for s = 1:length(coe3[i][j][1])
                                 Locb = bfind(tsupp, bi3[i][j][1][s])
@@ -448,10 +450,10 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                         end
                         for j1 = 1:k-1, j2 = j1+1:k
                             if l == 1 || l == Int(L/2)+1
-                                pp1 = pos[l][j1, j2]
+                                pp1 = sgram[i][l][j1, j2]
                             else
-                                pp1 = pos[l][j1, j2] + pos[l][j1+k, j2+k]
-                                pp2 = pos[l][j1+k, j2] - pos[l][j2+k, j1]
+                                pp1 = sgram[i][l][j1, j2] + sgram[i][l][j1+k, j2+k]
+                                pp2 = sgram[i][l][j1+k, j2] - sgram[i][l][j2+k, j1]
                             end
                             j = Int((2*k-j1)*(j1-1)/2) + j2 - j1
                             for r = 1:L, s = 1:length(coe4[i][j][r])
@@ -472,7 +474,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                     pos = Matrix{Symmetric{VariableRef}}(undef, Int(L/2)-1, L)
                     npos = Matrix{Symmetric{VariableRef}}(undef, 2, Int(L/2)+1)
                     for l = 1:Int(L/2)-1, u = 1:L
-                        pos[l, u] = @variable(model, [1:2*k, 1:2*k], PSD)
+                        pos[l, u] = @variable(model, [1:2k, 1:2k], PSD)
                     end
                     for l = 1:2, u = 1:Int(L/2)+1
                         if u == 1 || u == Int(L/2)+1
@@ -595,7 +597,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
        println("solution status: $status")
     end
     println("optimum = $objv")
-    cor0 = cor1 = cor2 = GramMat = multiplier = moment = nothing
+    cor0 = cor1 = cor2 = GramMat = sGramMat = multiplier = moment = nothing
     mvar = -dual(con) # extract moments
     if correlation == true
         if lattice == "chain"
@@ -640,6 +642,21 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
                 else
                     A = value.(gram[i][l])
                     GramMat[i][l] = A[1:k,1:k] + A[k+1:2k,k+1:2k] + (A[k+1:2k,1:k] - A[1:k,k+1:2k])*im
+                end
+            end
+        end
+        if pso > 0
+            sGramMat = Vector{Vector{Union{Matrix{Float64}, Matrix{ComplexF64}}}}(undef, 2)
+            for i = 1:2
+                k = Int(length(gb[i])/L)
+                sGramMat[i] = Vector{Union{Matrix{Float64}, Matrix{ComplexF64}}}(undef, Int(L/2)+1)
+                for l = 1:Int(L/2)+1
+                    if l == 1 || l == Int(L/2) + 1
+                        sGramMat[i][l] = value.(sgram[i][l])
+                    else
+                        A = value.(sgram[i][l])
+                        sGramMat[i][l] = A[1:k,1:k] + A[k+1:2k,k+1:2k] + (A[k+1:2k,1:k] - A[1:k,k+1:2k])*im
+                    end
                 end
             end
         end
@@ -711,7 +728,7 @@ function GSB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, L::Int, d::Int; H_
     #         moment[i][l] -= diagm(diag(moment[i][l]))/2
     #     end
     # end
-    data = qmb_data(cor0,cor1,cor2,basis,tsupp,GramMat,multiplier,moment)
+    data = qmb_data(cor0,cor1,cor2,basis,gb,tsupp,GramMat,sGramMat,multiplier,moment)
     return objv,data
 end
 

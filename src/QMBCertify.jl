@@ -19,8 +19,10 @@ mutable struct qmb_data
     correlation2
     correlation3
     basis
+    sbasis
     tsupp
     GramMat
+    sGramMat
     multiplier
     moment
 end

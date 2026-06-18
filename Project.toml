@@ -1,7 +1,7 @@
 name = "QMBCertify"
 uuid = "71df4310-1531-11eb-256d-190d0a52716f"
 authors = ["Jie Wang <wangjie212@amss.ac.cn>"]
-version = "0.3.4"
+version = "0.3.5"
 
 [deps]
 Arblib = "fb37089c-8514-4489-9461-98f9c8763369"

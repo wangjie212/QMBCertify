@@ -6,10 +6,11 @@ coe = [3/4]
 N = 10 # number of spins
 lb = -0.4515446 # N = 10
 # lb = -0.4452196 # N = 20
-beta = 0.4
-@time opt = PFB(supp, coe, beta, N, 4, QUIET=true)
+# for i = 1:10
+beta = 0.1
+@time opt = PFB(supp, coe, beta, N, 3, QUIET=false)
 println(2^N*opt)
-
+# end
 
 
 using LinearAlgebra
@@ -28,3 +29,10 @@ for j = 2:4
 end
 v = eigvals(H/4)
 println(sum(exp.(-beta*v)))
+
+
+
+for i = 1:10
+beta = i
+println([i, exp(beta*0.75)])
+end

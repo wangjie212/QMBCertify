@@ -143,17 +143,17 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
-    UB = lb !== nothing ? exp(-L*beta*lb) : 3
+    UB = lb !== nothing ? exp(-L*beta*lb) : 5
     for i = 1:2
         basis_loc = get_pfbasis(L, i, d-1)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[1], [1;1]], [1, -1], L)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
-        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2]], [UB, -1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2]], [UB, -1], L)
     end
     for i = 3:4
         basis_loc = get_pfbasis(L, i, d-1)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
-        # add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [UB, -1], L)
+        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [UB, -1], L)
     end
     free = @variable(model, [1:2d])
     for i = 1:2d
@@ -200,10 +200,10 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         println("Finished block-diagonalization in $time seconds.")
         println("SDP size: n = $mb, m = $(length(tsupp))")
     end
-    cons[bfind(tsupp, [3])] -= 1
-    @variable(model, lower)
-    @objective(model, Max, lower)
-    cons[1] += lower
+    cons[bfind(tsupp, [3])] += 1
+    @variable(model, λ)
+    @objective(model, Min, λ)
+    cons[1] -= λ
     @constraint(model, cons .== 0)
     if QUIET == false
         println("Solving the SDP...")
