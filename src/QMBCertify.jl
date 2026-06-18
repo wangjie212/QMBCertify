@@ -1,5 +1,7 @@
 module QMBCertify
 
+import Base: iszero
+
 using JuMP
 using MosekTools
 using LinearAlgebra

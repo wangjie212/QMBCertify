@@ -22,13 +22,13 @@ function certify_qmb(data, Nsites, J, numopt;
 
     max_rel = 0.0
 
-    @inbounds for block in G1_num_blocks
+    @inbounds for (i, block) in enumerate(G1_num_blocks)
         Gnum = ComplexF64.(block)  
         F, rel = frob(Gnum, G1_blocks_proj[i])
         max_rel = max(max_rel, rel)
     end
 
-    @inbounds for block in G2_num_blocks
+    @inbounds for (i, block) in enumerate(G2_num_blocks)
         Gnum = ComplexF64.(block)
         F, rel = frob(Gnum, G2_blocks_proj[i])
         max_rel = max(max_rel, rel)
