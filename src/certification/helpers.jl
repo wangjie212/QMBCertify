@@ -48,14 +48,20 @@ function rationalize_poly(p::DynamicPolynomials.Polynomial; tol::Real = 1e-20)
 end
 
 
-function rigorous_min_eig(m::AbstractMatrix; prec::Int = 128)
+function rigorous_min_eig_bound(m::AbstractMatrix; prec::Int = 128)
     mc = AcbMatrix(m; prec=64)
 
     ev_approx, R_approx = Arblib.approx_eig_qr(mc; prec=prec)
 
     eps = Arblib.eig_global_enclosure(mc, ev_approx, R_approx; prec=prec)
 
-    min_v = BigFloat(minimum(Arb.(real.(ev_approx); prec=prec)) - Arblib.Arb(eps; prec=prec)) 
+    eig_ball = minimum(Arb.(real.(ev_approx); prec=prec)) - Arblib.Arb(eps; prec=prec)
+    eig_min_rat = Rational{BigInt}(Arblib.lbound(eig_ball))
+    return eig_min_rat, BigFloat(eig_min_rat)
+end
+
+function rigorous_min_eig(m::AbstractMatrix; prec::Int = 128)
+    return rigorous_min_eig_bound(m; prec=prec)[2]
 end
 
 function make_vars_chain(N::Int)
@@ -761,4 +767,3 @@ function dmrg_heisenberg_rat(N, J; J2=0.0, digits = 12)
     return rationalize(ceil(energy_per_site, digits = digits),
                        tol = tol_from_digits(digits))
 end
-
