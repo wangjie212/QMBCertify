@@ -36,31 +36,46 @@ function certify_qmb(data, Nsites, J, numopt;
 
     eigminsg1 = Vector{Float64}()
     eigminsg2 = Vector{Float64}()
+    eigminsg1_rat = Vector{Rat}()
+    eigminsg2_rat = Vector{Rat}()
 
     @inbounds for i in 1:length(G1_num_blocks)
         Gproj = ComplexF64.(G1_blocks_proj[i])
-        lambda_proj = rigorous_min_eig(Hermitian(Gproj); prec=eig_prec)
-        push!(eigminsg1, lambda_proj)
+        lambda_proj_rat, lambda_proj = rigorous_min_eig_bound(Hermitian(Gproj); prec=eig_prec)
+        push!(eigminsg1_rat, lambda_proj_rat)
+        push!(eigminsg1, Float64(lambda_proj))
     end
 
     lambda_min_g1 = minimum(eigminsg1)
+    lambda_min_g1_rat = minimum(eigminsg1_rat)
 
     @inbounds for i in 1:length(G2_num_blocks)
         Gproj = ComplexF64.(G2_blocks_proj[i])
-        lambda_proj = rigorous_min_eig(Hermitian(Gproj); prec=eig_prec)
-        push!(eigminsg2, lambda_proj)
+        lambda_proj_rat, lambda_proj = rigorous_min_eig_bound(Hermitian(Gproj); prec=eig_prec)
+        push!(eigminsg2_rat, lambda_proj_rat)
+        push!(eigminsg2, Float64(lambda_proj))
     end
 
     lambda_min_g2 = minimum(eigminsg2)
+    lambda_min_g2_rat = minimum(eigminsg2_rat)
 
     shift = lambda_min_g1*length(data.basis[1]) + lambda_min_g2*length(data.basis[2])
+    shift_rat = lambda_min_g1_rat*length(data.basis[1]) + lambda_min_g2_rat*length(data.basis[2])
+    const_idx = bfind(data.tsupp, UInt16[])
+    const_idx === nothing && error("Constant word [] not found in tsupp")
+    oldbound_rat = -LHS_vec[const_idx]
+    bound_rat = oldbound_rat + shift_rat
     bound = Float64(numopt) + shift
 
     println("Shift: ", shift)
 
     return (oldbound = numopt,
             newbound = bound,
+            oldbound_rat = oldbound_rat,
+            newbound_rat = bound_rat,
             shift    = shift,
+            shift_rat = shift_rat,
             mineigs  = vcat(eigminsg1, eigminsg2),
+            mineigs_rat = vcat(eigminsg1_rat, eigminsg2_rat),
             dims     = [length(data.basis[1]), length(data.basis[2])],)
 end

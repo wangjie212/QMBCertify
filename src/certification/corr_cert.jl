@@ -112,8 +112,7 @@ function certify_qmb_corr(
         eig_prec = eig_prec,
     )
 
-    e_lb_num = energy_cert.newbound
-    e_lb_rat = Rat(rationalize(e_lb_num; tol = tol_E))
+    e_lb_rat = energy_cert.newbound_rat
 
     e_ub_rat_int = dmrg_heisenberg_rat(N, 1.0; J2 = J2, digits = digits_dmrg)
     e_ub_rat = Rat(e_ub_rat_int)
@@ -216,21 +215,27 @@ function certify_qmb_corr(
 
         eigminsg1 = Vector{Float64}()
         eigminsg2 = Vector{Float64}()
+        eigminsg1_rat = Vector{Rat}()
+        eigminsg2_rat = Vector{Rat}()
 
         @inbounds for block in G1_blocks
             Gproj = ComplexF64.(block)
-            λ_proj = rigorous_min_eig(Hermitian(Gproj); prec = eig_prec)
+            λ_proj_rat, λ_proj = rigorous_min_eig_bound(Hermitian(Gproj); prec = eig_prec)
+            push!(eigminsg1_rat, λ_proj_rat)
             push!(eigminsg1, Float64(λ_proj))
         end
 
         @inbounds for block in G2_blocks
             Gproj = ComplexF64.(block)
-            λ_proj = rigorous_min_eig(Hermitian(Gproj); prec = eig_prec)
+            λ_proj_rat, λ_proj = rigorous_min_eig_bound(Hermitian(Gproj); prec = eig_prec)
+            push!(eigminsg2_rat, λ_proj_rat)
             push!(eigminsg2, Float64(λ_proj))
         end
 
         lambda_min_g1 = minimum(eigminsg1)
         lambda_min_g2 = minimum(eigminsg2)
+        lambda_min_g1_rat = minimum(eigminsg1_rat)
+        lambda_min_g2_rat = minimum(eigminsg2_rat)
 
         println("  CORR $(dir), dist=$(d): Minimum eigenvalue over G1 small blocks = ",
                 lambda_min_g1)
@@ -239,10 +244,8 @@ function certify_qmb_corr(
                 lambda_min_g2)
 
         # crude but rigorous shift: use global min eigenvalue per family
-        shift_num = lambda_min_g1 * length(data_corr.basis[1]) +
-                    lambda_min_g2 * length(data_corr.basis[2])
-
-        shift_rat = Rat(rationalize(shift_num; tol = tol_gram))
+        shift_rat = lambda_min_g1_rat * length(data_corr.basis[1]) +
+                    lambda_min_g2_rat * length(data_corr.basis[2])
 
         C_bound_corr_rat = if dir == :upper
             corr_bound_rat - shift_rat
@@ -261,6 +264,8 @@ function certify_qmb_corr(
             shift_corr   = shift_rat,
             eigmins_g1   = eigminsg1,
             eigmins_g2   = eigminsg2,
+            eigmins_g1_rat = eigminsg1_rat,
+            eigmins_g2_rat = eigminsg2_rat,
         )
     end
 
