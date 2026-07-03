@@ -1,4 +1,4 @@
-function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::Int; lb=nothing, QUIET=false)
+function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::Int; bound_energy=false, obj="min", E_lb=nothing, LB=nothing, UB=nothing, QUIET=false)
     println("*********************************** QMBCertify ***********************************")
     println("QMBCertify is launching...")
     if QUIET == false
@@ -20,7 +20,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         end
         for j = 1:p, s = 1:k
             bi = sadd(basis[i][1][j], basis[i][2][L*(s-1)+1])[1]
-            if !iszero(bi)
+            if !is_zero(bi)
                 push!(tsupp, reduce_pf(bi, L))
             end
         end
@@ -32,7 +32,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             bi1[i][j] = Vector{Vector{UInt16}}(undef, Int(L/2)+1)
             for r = 1:Int(L/2)+1
                 bi,coe1[i][j][r] = sadd(involution(basis[i][2][L*(j-1)+1]), basis[i][2][L*(j-1)+r], realify=true)
-                if iszero(bi)
+                if is_zero(bi)
                     coe1[i][j][r] = 0
                 else
                     bi1[i][j][r] = reduce_pf(bi, L)
@@ -49,7 +49,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             bi2[i][j] = Vector{Vector{UInt16}}(undef, L)
             for r = 1:L
                 bi,coe2[i][j][r] = sadd(involution(basis[i][2][L*(j1-1)+1]), basis[i][2][L*(j2-1)+r], realify=true)
-                if iszero(bi)
+                if is_zero(bi)
                     coe2[i][j][r] = 0
                 else
                     bi2[i][j][r] = reduce_pf(bi, L)
@@ -88,7 +88,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
                 end
                 for j = 1:p, s = 1:k
                     bi = sadd(basis[i][1][j], basis[i][2][L*(s-1)+1])[1]
-                    if !iszero(bi)
+                    if !is_zero(bi)
                         Locb = bfind(tsupp, reduce_pf(bi, L))
                         @inbounds add_to_expression!(cons[Locb], 2*sqrt(L), pos[j,s+p])
                     end
@@ -143,17 +143,26 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             end
         end
     end
-    UB = lb !== nothing ? exp(-L*beta*lb) : 5
     for i = 1:2
         basis_loc = get_pfbasis(L, i, d-1)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[1], [1;1]], [1, -1], L)
         add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[2]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2]], [UB, -1], L)
+        if E_lb !== nothing
+            add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [2]], [exp(-L*beta*E_lb), -1], L)
+        end
     end
     for i = 3:4
         basis_loc = get_pfbasis(L, i, d-1)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
-        add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [UB, -1], L)
+        if LB !== nothing
+            add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3], []], [1, -LB], L)
+        else
+            add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[3]], [1], L)
+        end
+        if UB !== nothing
+            add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [UB, -1], L)
+        elseif E_lb !== nothing
+            add_block!(model, cons, basis_loc, tsupp, Vector{UInt16}[[], [3]], [exp(-L*beta*E_lb), -1], L)
+        end
     end
     free = @variable(model, [1:2d])
     for i = 1:2d
@@ -187,7 +196,7 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
             bi = UInt16[4;7;3i+j;smod(3i+j, 3L)+3]
             bi,coef = reduce2!(reduce3!(reduce1!(bi)))
             bi = UInt16[ones(Int, a);2*ones(Int, k-a);reduce3!(bi)]
-            if isreal(coef) && !iszero(bi)
+            if isreal(coef) && !is_zero(bi)
                 Locb = bfind(tsupp, reduce_pf(bi, L))
                 @inbounds add_to_expression!(cons[Locb], -beta*coef*(k-a)/4, free[l])
             end
@@ -200,10 +209,28 @@ function PFB(supp::Vector{Vector{Int}}, coe::Vector{Float64}, beta, L::Int, d::I
         println("Finished block-diagonalization in $time seconds.")
         println("SDP size: n = $mb, m = $(length(tsupp))")
     end
-    cons[bfind(tsupp, [3])] += 1
     @variable(model, λ)
-    @objective(model, Min, λ)
-    cons[1] -= λ
+    if obj == "min"
+        if bound_energy == false
+            cons[bfind(tsupp, [3])] -= 1
+        else
+            for (i, item) in enumerate(supp)
+                cons[bfind(tsupp, [3; item .+ 3])] -= coe[i]*L
+            end
+        end
+        @objective(model, Max, λ)
+        cons[1] += λ
+    else
+        if bound_energy == false
+            cons[bfind(tsupp, [3])] += 1
+        else
+            for (i, item) in enumerate(supp)
+                cons[bfind(tsupp, [3; item .+ 3])] += coe[i]*L
+            end
+        end
+        @objective(model, Min, λ)
+        cons[1] -= λ
+    end
     @constraint(model, cons .== 0)
     if QUIET == false
         println("Solving the SDP...")
@@ -289,7 +316,7 @@ function sadd(a::Vector{UInt16}, b::Vector{UInt16}; realify=false)
     return [ones(UInt16, s); word],coef
 end
 
-function iszero(a::Vector{UInt16})
+function is_zero(a::Vector{UInt16})
     return (!isempty(a) && !all(x -> x == 1, a) && !any(x -> x == 2 || x == 3, a)) || any(i->isodd(count(isequal(i), mod.(a[a.>3],3))), 0:2)
 end
 
@@ -538,7 +565,7 @@ function add_block!(model, cons, basis, tsupp, supp, coe, L)
             end
             for j = 1:p, s = 1:k, (t, item) in enumerate(supp)
                 bi = sadd(basis[1][j], [item; basis[2][L*(s-1)+1]])[1]
-                if !iszero(bi)
+                if !is_zero(bi)
                     Locb = bfind(tsupp, reduce_pf(bi, L))
                     @inbounds add_to_expression!(cons[Locb], 2*coe[t]*sqrt(L), pos[j,s+p])
                 end
@@ -558,7 +585,7 @@ function add_block!(model, cons, basis, tsupp, supp, coe, L)
             end
             for r = 1:Int(L/2)+1, (t, item) in enumerate(supp)
                 bi,c = sadd(involution(basis[2][L*(s-1)+1]), [item; basis[2][L*(s-1)+r]], realify=true)
-                if !iszero(bi)
+                if !is_zero(bi)
                     Locb = bfind(tsupp, reduce_pf(bi, L))
                     if r == 1
                         @inbounds add_to_expression!(cons[Locb], c*coe[t], pp)
@@ -581,7 +608,7 @@ function add_block!(model, cons, basis, tsupp, supp, coe, L)
             end
             for r = 1:L, (t, item) in enumerate(supp)
                 bi,c = sadd(involution(basis[2][L*(j1-1)+1]), [item; basis[2][L*(j2-1)+r]], realify=true)
-                if !iszero(bi)
+                if !is_zero(bi)
                     Locb = bfind(tsupp, reduce_pf(bi, L))
                     @inbounds add_to_expression!(cons[Locb], 2*c*coe[t]*cos(2*pi*(r-1)*(l-1)/L), pp1)
                     if l != 1 && l != Int(L/2) + 1

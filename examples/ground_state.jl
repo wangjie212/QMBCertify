@@ -5,7 +5,7 @@ supp = [[1;4]]
 coe = [3/4]
 N = 10 # number of spins
 r = 5
-@time opt,data = GSB(supp, coe, N, 4, QUIET=false, rdm=8, pso=0, lso=0, extra=r-1)
+@time opt,data = GSB(supp, -coe, N, 4, QUIET=false, rdm=10, pso=3, lso=true, extra=r-1)
 
 
 ub = -0.4872305
