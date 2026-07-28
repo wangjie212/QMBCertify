@@ -49,7 +49,7 @@ end
 
 
 function rigorous_min_eig_bound(m::AbstractMatrix; prec::Int = 128)
-    mc = AcbMatrix(m; prec=64)
+    mc = AcbMatrix(m; prec=prec)
 
     ev_approx, R_approx = Arblib.approx_eig_qr(mc; prec=prec)
 
